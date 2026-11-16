@@ -1,0 +1,639 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+enum Language {
+  PORTUGUESE
+  ENGLISH
+  BOTH
+}
+
+enum DeliveryMode {
+  ONLINE
+  IN_PERSON
+  BOTH
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  EXPIRED
+}
+
+enum AssessmentStatus {
+  NEW
+  CONTACTED
+  SCHEDULED
+  COMPLETED
+  CONVERTED
+  NO_SHOW
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  CANCELLED_BY_STUDENT
+  CANCELLED_BY_TUTOR
+}
+
+enum PackageStatus {
+  ACTIVE
+  EXPIRED
+  EXHAUSTED
+  CANCELLED
+  REFUNDED
+}
+
+enum HomeworkStatus {
+  ASSIGNED
+  SUBMITTED
+  REVIEWED
+  OVERDUE
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_REMINDER
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  ASSESSMENT_RECEIVED
+  HOMEWORK_ASSIGNED
+  HOMEWORK_REVIEWED
+  PACKAGE_EXPIRING
+  LESSON_NOTES_ADDED
+}
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// ─── Core user models ─────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  role            Role      @default(STUDENT)
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  studentProfile  StudentProfile?
+  tutorProfile    TutorProfile?
+
+  // Student relations
+  bookingsAsStudent      Booking[]              @relation("StudentBookings")
+  payments               Payment[]
+  packagePurchases       PackagePurchase[]
+  homeworkSubmissions    HomeworkSubmission[]
+  studentProgress        StudentProgress[]
+  materialsAccess        MaterialAccess[]
+
+  // Tutor relations
+  bookingsAsTutor        Booking[]              @relation("TutorBookings")
+  availability           Availability[]
+  lessonsAsTutor         Lesson[]               @relation("TutorLessons")
+  homeworkAssigned       Homework[]
+  uploadedMaterials      LearningMaterial[]
+  assessmentsAssigned    AssessmentRequest[]    @relation("AssignedTutor")
+
+  // Auth
+  passwordResetTokens    PasswordResetToken[]
+  emailVerifyTokens      EmailVerificationToken[]
+  refreshSessions        RefreshSession[]
+
+  // Misc
+  notifications          Notification[]
+  auditLogsPerformed     AuditLog[]             @relation("PerformedBy")
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model StudentProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  phone            String?
+  preferredLanguage Language  @default(PORTUGUESE)
+  currentLevel     String?
+  learningGoals    String?
+  timezone         String    @default("Europe/Lisbon")
+  companyName      String?
+  notes            String?   // admin-only internal notes
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model TutorProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  biography      String?
+  qualifications String?
+  languages      Language @default(BOTH)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tutor_profiles")
+}
+
+// ─── Auth tokens ──────────────────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique // store hash of the token, never plaintext
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@map("email_verification_tokens")
+}
+
+model RefreshSession {
+  id           String   @id @default(uuid())
+  userId       String
+  tokenHash    String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  lastUsedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_sessions")
+}
+
+// ─── Services and availability ────────────────────────────────────────────────
+
+model Service {
+  id              String       @id @default(uuid())
+  name            String
+  slug            String       @unique
+  description     String?
+  language        Language
+  deliveryMode    DeliveryMode
+  durationMinutes Int
+  price           Decimal      @db.Decimal(10, 2)
+  currency        String       @default("EUR")
+  isActive        Boolean      @default(true)
+  sortOrder       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  bookings        Booking[]
+
+  @@index([language])
+  @@index([isActive])
+  @@map("services")
+}
+
+model Availability {
+  id          String    @id @default(uuid())
+  tutorId     String
+  weekDay     WeekDay
+  startTime   String    // "HH:MM" in tutor's timezone
+  endTime     String    // "HH:MM" in tutor's timezone
+  timezone    String    @default("Europe/Lisbon")
+  validFrom   DateTime?
+  validUntil  DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tutor       User      @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@index([tutorId])
+  @@index([weekDay])
+  @@index([isActive])
+  @@map("availability")
+}
+
+// ─── Bookings ─────────────────────────────────────────────────────────────────
+
+model Booking {
+  id                 String        @id @default(uuid())
+  studentId          String
+  tutorId            String
+  serviceId          String
+  startAt            DateTime      // UTC
+  endAt              DateTime      // UTC
+  timezone           String        @default("Europe/Lisbon")
+  deliveryMode       DeliveryMode
+  status             BookingStatus @default(PENDING_PAYMENT)
+  meetingLink        String?       // for online lessons
+  location           String?       // for in-person lessons
+  cancellationReason String?
+  cancelledBy        String?       // userId who cancelled
+  cancelledAt        DateTime?
+  expiresAt          DateTime?     // for PENDING_PAYMENT bookings
+  packagePurchaseId  String?       // if paid via package
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  student            User          @relation("StudentBookings", fields: [studentId], references: [id])
+  tutor              User          @relation("TutorBookings", fields: [tutorId], references: [id])
+  service            Service       @relation(fields: [serviceId], references: [id])
+  packagePurchase    PackagePurchase? @relation(fields: [packagePurchaseId], references: [id])
+
+  payment            Payment?
+  lesson             Lesson?
+
+  @@index([studentId])
+  @@index([tutorId])
+  @@index([status])
+  @@index([startAt])
+  @@index([expiresAt])
+  @@map("bookings")
+}
+
+// ─── Lessons ──────────────────────────────────────────────────────────────────
+
+model Lesson {
+  id               String           @id @default(uuid())
+  bookingId        String           @unique
+  tutorId          String
+  studentId        String
+  topic            String?
+  privateNotes     String?          // NEVER returned in student API responses
+  studentFeedback  String?          // visible to student
+  attendanceStatus AttendanceStatus?
+  attendanceMarkedBy String?
+  attendanceMarkedAt DateTime?
+  durationMinutes  Int?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  booking          Booking          @relation(fields: [bookingId], references: [id])
+  tutor            User             @relation("TutorLessons", fields: [tutorId], references: [id])
+  homework         Homework[]
+  materials        LessonMaterial[]
+
+  @@index([tutorId])
+  @@index([studentId])
+  @@map("lessons")
+}
+
+// ─── Packages ─────────────────────────────────────────────────────────────────
+
+model Package {
+  id              String            @id @default(uuid())
+  name            String
+  description     String?
+  language        Language
+  lessonCount     Int
+  validityDays    Int
+  price           Decimal           @db.Decimal(10, 2)
+  currency        String            @default("EUR")
+  isActive        Boolean           @default(true)
+  sortOrder       Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  purchases       PackagePurchase[]
+
+  @@index([isActive])
+  @@map("packages")
+}
+
+model PackagePurchase {
+  id              String        @id @default(uuid())
+  studentId       String
+  packageId       String
+  purchasedAt     DateTime      @default(now())
+  expiresAt       DateTime
+  totalLessons    Int
+  usedLessons     Int           @default(0)
+  status          PackageStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  student         User          @relation(fields: [studentId], references: [id])
+  package         Package       @relation(fields: [packageId], references: [id])
+  payments        Payment[]
+  bookings        Booking[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("package_purchases")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                    String        @id @default(uuid())
+  studentId             String
+  bookingId             String?       @unique
+  packagePurchaseId     String?
+  stripeSessionId       String?       @unique
+  stripePaymentIntentId String?       @unique
+  stripeChargeId        String?
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("EUR")
+  status                PaymentStatus @default(PENDING)
+  paidAt                DateTime?
+  refundedAt            DateTime?
+  refundAmount          Decimal?      @db.Decimal(10, 2)
+  refundReason          String?
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  student               User          @relation(fields: [studentId], references: [id])
+  booking               Booking?      @relation(fields: [bookingId], references: [id])
+  packagePurchase       PackagePurchase? @relation(fields: [packagePurchaseId], references: [id])
+
+  @@index([studentId])
+  @@index([status])
+  @@index([stripeSessionId])
+  @@index([stripePaymentIntentId])
+  @@map("payments")
+}
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String   // "stripe"
+  eventId     String   @unique // e.g. evt_...
+  type        String
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([eventId])
+  @@index([type])
+  @@map("webhook_events")
+}
+
+// ─── Assessments ──────────────────────────────────────────────────────────────
+
+model AssessmentRequest {
+  id               String           @id @default(uuid())
+  name             String
+  email            String
+  phone            String?
+  language         Language
+  currentLevel     String?
+  learningGoals    String?
+  deliveryMode     DeliveryMode
+  preferredDate    DateTime?
+  preferredTime    String?
+  message          String?
+  status           AssessmentStatus @default(NEW)
+  assignedTutorId  String?
+  internalNotes    String?
+  convertedUserId  String?          // userId if converted to student
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  assignedTutor    User?            @relation("AssignedTutor", fields: [assignedTutorId], references: [id])
+
+  @@index([status])
+  @@index([email])
+  @@map("assessment_requests")
+}
+
+// ─── Learning content ─────────────────────────────────────────────────────────
+
+model LearningMaterial {
+  id           String           @id @default(uuid())
+  uploadedById String
+  title        String
+  description  String?
+  fileKey      String           // S3/R2 object key
+  fileSize     Int
+  mimeType     String
+  language     Language?
+  isPublic     Boolean          @default(false) // accessible to all students if true
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+  lessonMaterials LessonMaterial[]
+  accessGrants MaterialAccess[]
+
+  @@index([uploadedById])
+  @@map("learning_materials")
+}
+
+model LessonMaterial {
+  lessonId   String
+  materialId String
+
+  lesson     Lesson           @relation(fields: [lessonId], references: [id])
+  material   LearningMaterial @relation(fields: [materialId], references: [id])
+
+  @@id([lessonId, materialId])
+  @@map("lesson_materials")
+}
+
+model MaterialAccess {
+  id         String           @id @default(uuid())
+  studentId  String
+  materialId String
+  grantedAt  DateTime         @default(now())
+  expiresAt  DateTime?
+
+  student    User             @relation(fields: [studentId], references: [id])
+  material   LearningMaterial @relation(fields: [materialId], references: [id])
+
+  @@unique([studentId, materialId])
+  @@map("material_access")
+}
+
+model Homework {
+  id           String         @id @default(uuid())
+  lessonId     String?
+  assignedById String
+  studentId    String
+  title        String
+  instructions String
+  dueAt        DateTime?
+  status       HomeworkStatus @default(ASSIGNED)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  lesson       Lesson?        @relation(fields: [lessonId], references: [id])
+  assignedBy   User           @relation(fields: [assignedById], references: [id])
+  submission   HomeworkSubmission?
+
+  @@index([studentId])
+  @@index([status])
+  @@map("homework")
+}
+
+model HomeworkSubmission {
+  id          String   @id @default(uuid())
+  homeworkId  String   @unique
+  studentId   String
+  content     String?
+  fileKey     String?
+  submittedAt DateTime @default(now())
+  feedback    String?
+  feedbackAt  DateTime?
+  reviewedBy  String?
+
+  homework    Homework @relation(fields: [homeworkId], references: [id])
+  student     User     @relation(fields: [studentId], references: [id])
+
+  @@map("homework_submissions")
+}
+
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
+model StudentProgress {
+  id              String   @id @default(uuid())
+  studentId       String
+  language        Language
+  currentLevel    String
+  previousLevel   String?
+  updatedById     String
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  student         User     @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@map("student_progress")
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  performedById String
+  action       String
+  entityType   String
+  entityId     String?
+  oldData      Json?
+  newData      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  performedBy  User     @relation("PerformedBy", fields: [performedById], references: [id])
+
+  @@index([performedById])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Business settings ────────────────────────────────────────────────────────
+
+model BusinessSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("business_settings")
+}
+
+// ─── Company training requests ────────────────────────────────────────────────
+
+model CompanyTrainingRequest {
+  id            String   @id @default(uuid())
+  companyName   String
+  contactName   String
+  email         String
+  phone         String?
+  employeeCount Int?
+  language      Language
+  goals         String?
+  message       String?
+  status        String   @default("NEW")
+  internalNotes String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@map("company_training_requests")
+}

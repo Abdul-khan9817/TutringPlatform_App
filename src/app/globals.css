@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  /* Native instant scrolling - prevents stuttering and lag */
+  body {
+    @apply text-slate-900 bg-white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4 { @apply font-bold tracking-tight; }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .container-narrow { @apply max-w-3xl mx-auto px-4 sm:px-6; }
+  .container-wide { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8; }
+  .section { @apply py-16 md:py-24; }
+
+  /* Rock-solid card hover effects — zero Y-axis shifting prevents scroll bubbling/flicker */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:border-slate-300;
+  }
+
+  .card-interactive {
+    @apply transition-all duration-200 hover:shadow-lg hover:border-brand-400;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-200 hover:shadow-lg hover:border-brand-300;
+  }
+
+  /* Skip to main content link */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100]
+      focus:bg-brand-700 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg
+      focus:text-sm focus:font-semibold focus:shadow-lg;
+  }
+
+  /* Legal page prose styles (no plugin needed) */
+  .legal-prose h2 { @apply text-xl font-bold text-slate-900 mt-8 mb-3; }
+  .legal-prose h3 { @apply text-lg font-semibold text-slate-900 mt-6 mb-2; }
+  .legal-prose p  { @apply text-slate-700 leading-relaxed mb-4; }
+  .legal-prose ul { @apply list-disc pl-6 mb-4 space-y-1; }
+  .legal-prose li { @apply text-slate-700; }
+  .legal-prose a  { @apply text-brand-700 underline underline-offset-2; }
+  .legal-prose strong { @apply font-semibold text-slate-900; }
+
+  /* Gradient text utility */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ── Smooth mobile menu animation ── */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-slide-down { animation: slideDown 0.2s ease-out forwards; }
+.animate-fade-in    { animation: fadeIn 0.25s ease-out forwards; }
+.animate-slide-up   { animation: slideUp 0.22s ease-out forwards; }
+.animate-scale-in   { animation: scaleIn 0.2s ease-out forwards; }
+
+/* ── Loading skeleton shimmer ── */
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ── Focus ring override for brand inputs ── */
+.focus-brand:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: #2563eb;
+}
+
+/* ── Smooth transition duration 250ms ── */
+.duration-250 {
+  transition-duration: 250ms;
+}
