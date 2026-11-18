@@ -8,7 +8,7 @@
 export interface StudentBooking {
   id: string
   serviceName: string
-  language: 'PORTUGUESE' | 'ENGLISH'
+  language: 'PORTUGUESE' | 'ENGLISH' | 'BOTH'
   durationMinutes: number
   deliveryMode: 'ONLINE' | 'IN_PERSON'
   tutorName: string
@@ -26,7 +26,7 @@ export interface StudentBooking {
 export interface StudentPackage {
   id: string
   name: string
-  language: 'PORTUGUESE' | 'ENGLISH'
+  language: 'PORTUGUESE' | 'ENGLISH' | 'BOTH'
   lessonCount: number
   usedLessons: number
   validityDays: number
@@ -40,7 +40,7 @@ export interface StudentPackage {
 export interface AvailablePackage {
   id: string
   name: string
-  language: 'PORTUGUESE' | 'ENGLISH'
+  language: 'PORTUGUESE' | 'ENGLISH' | 'BOTH'
   lessonCount: number
   validityDays: number
   price: number
@@ -65,7 +65,7 @@ export interface StudentMaterial {
   type: 'PDF' | 'AUDIO' | 'VIDEO' | 'WORKSHEET' | 'LINK'
   description: string
   url: string
-  language: 'PORTUGUESE' | 'ENGLISH'
+  language: 'PORTUGUESE' | 'ENGLISH' | 'BOTH'
   level: string
   uploadedAt: string
 }
@@ -100,6 +100,16 @@ export interface StudentProfile {
   enrolledAt: string
 }
 
+export interface StudentNotification {
+  id: string
+  title: string
+  message: string
+  type: 'LESSON' | 'HOMEWORK' | 'PACKAGE' | 'SYSTEM'
+  timestamp: string
+  read: boolean
+  link?: string
+}
+
 // ---------------------------------------------------------------------------
 // Global in-memory store (persists across Next.js hot reloads via globalThis)
 // ---------------------------------------------------------------------------
@@ -117,6 +127,7 @@ interface StudentStore {
   payments: StudentPayment[]
   progress: StudentProgressEntry[]
   profile: StudentProfile
+  notifications?: StudentNotification[]
 }
 
 function createInitialStore(): StudentStore {
@@ -363,6 +374,36 @@ function createInitialStore(): StudentStore {
       { level: 'B1', label: 'Intermediate', completedLessons: 0, targetLessons: 15, achievedAt: undefined, current: false },
       { level: 'B2', label: 'Upper Intermediate', completedLessons: 0, targetLessons: 20, achievedAt: undefined, current: false },
     ],
+
+    notifications: [
+      {
+        id: 'snotif-1',
+        title: 'Upcoming Portuguese Class',
+        message: 'Your live lesson with Prof. Asad Khan starts tomorrow at 10:00 (WET).',
+        type: 'LESSON',
+        timestamp: '1 hour ago',
+        read: false,
+        link: '/student/bookings',
+      },
+      {
+        id: 'snotif-2',
+        title: 'Homework Assigned',
+        message: 'Pretérito Perfeito vs Imperfeito practice exercises are due in 4 days.',
+        type: 'HOMEWORK',
+        timestamp: 'Yesterday',
+        read: false,
+        link: '/student/homework',
+      },
+      {
+        id: 'snotif-3',
+        title: 'Package Balance Alert',
+        message: 'You have 6 lesson credits remaining in your Workplace Portuguese 10-pack.',
+        type: 'PACKAGE',
+        timestamp: '2 days ago',
+        read: true,
+        link: '/student/packages',
+      },
+    ],
   }
 }
 
@@ -556,4 +597,42 @@ export function getStudentDashboardData() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
 
   return { upcoming, active, pendingHw, lastPayment }
+}
+
+// ---------------------------------------------------------------------------
+// Student Notifications
+// ---------------------------------------------------------------------------
+
+export function getStudentNotifications(): StudentNotification[] {
+  const store = getStore()
+  if (!store.notifications) {
+    store.notifications = []
+  }
+  return [...store.notifications]
+}
+
+export function markStudentNotificationAsRead(id: string): boolean {
+  const store = getStore()
+  if (!store.notifications) return false
+  const notif = store.notifications.find((n) => n.id === id)
+  if (notif) {
+    notif.read = true
+    return true
+  }
+  return false
+}
+
+export function markAllStudentNotificationsAsRead(): boolean {
+  const store = getStore()
+  if (!store.notifications) return false
+  store.notifications.forEach((n) => {
+    n.read = true
+  })
+  return true
+}
+
+export function clearStudentNotifications(): boolean {
+  const store = getStore()
+  store.notifications = []
+  return true
 }

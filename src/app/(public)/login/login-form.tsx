@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -18,6 +18,7 @@ export function LoginForm() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
 
   const {
     register,
@@ -26,6 +27,17 @@ export function LoginForm() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+  const isBusy = isSubmitting || isNavigating
+  const [showSpinner, setShowSpinner] = useState(false)
+
+  useEffect(() => {
+    if (!isBusy) {
+      setShowSpinner(false)
+      return
+    }
+    const timer = window.setTimeout(() => setShowSpinner(true), 140)
+    return () => window.clearTimeout(timer)
+  }, [isBusy])
 
   const onSubmit = async (data: FormData) => {
     setError(null)
@@ -41,8 +53,8 @@ export function LoginForm() {
         return
       }
       const role = json.data?.role
-      router.push(role === 'STUDENT' ? '/student/dashboard' : '/management/dashboard')
-      router.refresh()
+      setIsNavigating(true)
+      router.replace(role === 'STUDENT' ? '/student/dashboard' : '/management/dashboard')
     } catch {
       setError('Something went wrong. Please try again.')
     }
@@ -140,10 +152,23 @@ export function LoginForm() {
         <Button
           type="submit"
           size="lg"
-          loading={isSubmitting}
-          className="w-full bg-brand-700 hover:bg-brand-800 text-white font-semibold py-3 rounded-xl shadow-sm hover:shadow-md transition-all text-sm"
+          disabled={isBusy}
+          aria-busy={isBusy}
+          className="w-full bg-brand-700 hover:bg-brand-800 text-white font-semibold py-3 rounded-xl shadow-sm hover:shadow-md transition-colors text-sm hover:translate-y-0 active:translate-y-0 disabled:opacity-100"
         >
-          Sign in
+          <span className="inline-flex items-center justify-center gap-2.5">
+            <svg
+              className={`h-4 w-4 shrink-0 transition-opacity duration-200 ${showSpinner ? 'animate-spin opacity-100' : 'opacity-0'}`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span>Sign in</span>
+          </span>
         </Button>
       </div>
     </form>

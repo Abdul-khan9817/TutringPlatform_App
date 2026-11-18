@@ -12,7 +12,7 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
   // Modals state
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [activeBooking, setActiveBooking] = useState<BookingRecord | null>(null)
-  const [modalType, setModalType] = useState<'ATTENDANCE' | 'MEETING_LINK' | null>(null)
+  const [modalType, setModalType] = useState<'ATTENDANCE' | 'MEETING_LINK' | 'EDIT' | null>(null)
 
   // Attendance Form State
   const [attendanceStatus, setAttendanceStatus] = useState<'PRESENT' | 'ABSENT' | 'LATE'>('PRESENT')
@@ -30,6 +30,17 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
   const [newDeliveryMode, setNewDeliveryMode] = useState<'ONLINE' | 'IN_PERSON'>('ONLINE')
   const [newDateTime, setNewDateTime] = useState('')
   const [newPrice, setNewPrice] = useState(32)
+
+  // Edit Booking Modal State
+  const [editStudentName, setEditStudentName] = useState('')
+  const [editStudentEmail, setEditStudentEmail] = useState('')
+  const [editService, setEditService] = useState('')
+  const [editLanguage, setEditLanguage] = useState<'PORTUGUESE' | 'ENGLISH'>('PORTUGUESE')
+  const [editDeliveryMode, setEditDeliveryMode] = useState<'ONLINE' | 'IN_PERSON'>('ONLINE')
+  const [editDateTime, setEditDateTime] = useState('')
+  const [editMeetingLink, setEditMeetingLink] = useState('')
+  const [editPrice, setEditPrice] = useState(32)
+  const [editBookingStatus, setEditBookingStatus] = useState<'CONFIRMED' | 'PENDING_PAYMENT' | 'COMPLETED' | 'CANCELLED'>('CONFIRMED')
 
   const filtered = bookings.filter((b) => filter === 'ALL' || b.status === filter)
 
@@ -149,6 +160,79 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
     }
   }
 
+  // Edit Booking
+  const handleEditBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeBooking) return
+    setUpdatingId(activeBooking.id)
+    try {
+      const res = await fetch('/api/v1/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE_BOOKING',
+          payload: {
+            id: activeBooking.id,
+            data: {
+              studentName: editStudentName,
+              studentEmail: editStudentEmail,
+              serviceName: editService,
+              language: editLanguage,
+              deliveryMode: editDeliveryMode,
+              startAt: editDateTime ? new Date(editDateTime).toISOString() : undefined,
+              meetingLink: editMeetingLink,
+              price: editPrice,
+              status: editBookingStatus,
+            },
+          },
+        }),
+      })
+      const json = await res.json()
+      if (json.success && json.data) {
+        setBookings((prev) => prev.map((b) => (b.id === activeBooking.id ? json.data : b)))
+        setModalType(null)
+        setActiveBooking(null)
+      }
+    } catch {
+      alert('Failed to update booking.')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  // Delete Booking
+  const handleDeleteBooking = async (b: BookingRecord) => {
+    if (!confirm(`Delete this booking for ${b.studentName}? This cannot be undone.`)) return
+    setUpdatingId(b.id)
+    try {
+      const res = await fetch('/api/v1/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE_BOOKING',
+          payload: { id: b.id },
+        }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setBookings((prev) => prev.filter((bk) => bk.id !== b.id))
+      }
+    } catch {
+      alert('Failed to delete booking.')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  // Helper: convert ISO string to datetime-local value
+  const toDatetimeLocal = (iso: string) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    // yyyy-MM-ddTHH:mm
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
   const getStatusBadge = (status: BookingRecord['status']) => {
     switch (status) {
       case 'CONFIRMED':
@@ -232,11 +316,11 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
               <tr>
-                <th className="px-5 py-4">Student & Lesson</th>
-                <th className="px-5 py-4">Schedule & Delivery</th>
+                <th className="px-5 py-4">Student &amp; Lesson</th>
+                <th className="px-5 py-4">Schedule &amp; Delivery</th>
                 <th className="px-5 py-4">Online Meeting Link</th>
                 <th className="px-5 py-4">Attendance</th>
-                <th className="px-5 py-4">Status & Fee</th>
+                <th className="px-5 py-4">Status &amp; Fee</th>
                 <th className="px-5 py-4 text-right">Class Actions</th>
               </tr>
             </thead>
@@ -384,6 +468,27 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
                     {/* Actions */}
                     <td className="px-5 py-4 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
+                        {/* Edit button */}
+                        <button
+                          disabled={updatingId === b.id}
+                          onClick={() => {
+                            setActiveBooking(b)
+                            setEditStudentName(b.studentName)
+                            setEditStudentEmail(b.studentEmail)
+                            setEditService(b.serviceName)
+                            setEditLanguage(b.language as 'PORTUGUESE' | 'ENGLISH')
+                            setEditDeliveryMode(b.deliveryMode as 'ONLINE' | 'IN_PERSON')
+                            setEditDateTime(toDatetimeLocal(b.startAt))
+                            setEditMeetingLink(b.meetingLink || '')
+                            setEditPrice(b.price)
+                            setEditBookingStatus(b.status as 'CONFIRMED' | 'PENDING_PAYMENT' | 'COMPLETED' | 'CANCELLED')
+                            setModalType('EDIT')
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 transition-colors"
+                        >
+                          Edit
+                        </button>
+
                         {b.status !== 'CONFIRMED' && (
                           <button
                             disabled={updatingId === b.id}
@@ -413,6 +518,15 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
                             Cancel
                           </button>
                         )}
+
+                        {/* Delete button */}
+                        <button
+                          disabled={updatingId === b.id}
+                          onClick={() => handleDeleteBooking(b)}
+                          className="px-2 py-1 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -429,7 +543,7 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
           <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="font-extrabold text-lg text-slate-900">
-                Attendance & Feedback: {activeBooking.studentName}
+                Attendance &amp; Feedback: {activeBooking.studentName}
               </h3>
               <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600 font-bold">
                 ✕
@@ -547,6 +661,160 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
         </div>
       )}
 
+      {/* ── Modal: Edit Booking ── */}
+      {modalType === 'EDIT' && activeBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-lg text-slate-900">Edit Booking</h3>
+              <button
+                onClick={() => { setModalType(null); setActiveBooking(null) }}
+                className="text-slate-400 hover:text-slate-600 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditBooking} className="space-y-3">
+              {/* Student Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Student Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editStudentName}
+                  onChange={(e) => setEditStudentName(e.target.value)}
+                  placeholder="Student Full Name"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Student Email */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Student Email</label>
+                <input
+                  type="email"
+                  required
+                  value={editStudentEmail}
+                  onChange={(e) => setEditStudentEmail(e.target.value)}
+                  placeholder="student@example.pt"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Service Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Service Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editService}
+                  onChange={(e) => setEditService(e.target.value)}
+                  placeholder="e.g. European Portuguese for Workplace"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Language & Delivery Mode */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
+                  <select
+                    value={editLanguage}
+                    onChange={(e) => setEditLanguage(e.target.value as 'PORTUGUESE' | 'ENGLISH')}
+                    className="w-full h-10 px-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-brand-500 focus:border-brand-500"
+                  >
+                    <option value="PORTUGUESE">Portuguese</option>
+                    <option value="ENGLISH">English</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Delivery Mode</label>
+                  <select
+                    value={editDeliveryMode}
+                    onChange={(e) => setEditDeliveryMode(e.target.value as 'ONLINE' | 'IN_PERSON')}
+                    className="w-full h-10 px-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-brand-500 focus:border-brand-500"
+                  >
+                    <option value="ONLINE">Online Video</option>
+                    <option value="IN_PERSON">In-Person (Lisbon)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Date/Time */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Lesson Date &amp; Time</label>
+                <input
+                  type="datetime-local"
+                  value={editDateTime}
+                  onChange={(e) => setEditDateTime(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Meeting Link */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Meeting Link</label>
+                <input
+                  type="url"
+                  value={editMeetingLink}
+                  onChange={(e) => setEditMeetingLink(e.target.value)}
+                  placeholder="https://meet.google.com/..."
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Price & Status */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Price (€)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(Number(e.target.value))}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                  <select
+                    value={editBookingStatus}
+                    onChange={(e) => setEditBookingStatus(e.target.value as 'CONFIRMED' | 'PENDING_PAYMENT' | 'COMPLETED' | 'CANCELLED')}
+                    className="w-full h-10 px-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-brand-500 focus:border-brand-500"
+                  >
+                    <option value="CONFIRMED">Confirmed</option>
+                    <option value="PENDING_PAYMENT">Pending Payment</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => { setModalType(null); setActiveBooking(null) }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingId === activeBooking.id}
+                  className="px-5 py-2.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-sm shadow-sm transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── Modal: Schedule New Lesson ── */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
@@ -623,7 +891,7 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRe
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Lesson Date & Time</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Lesson Date &amp; Time</label>
                   <input
                     type="datetime-local"
                     value={newDateTime}

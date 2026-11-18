@@ -23,6 +23,15 @@ const config: Config = {
           950: '#172554',
         },
       },
+      boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      },
+      borderRadius: {
+        '2xs': '1px',
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },

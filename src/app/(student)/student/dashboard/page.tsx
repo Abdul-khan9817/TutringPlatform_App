@@ -1,34 +1,29 @@
 import { getSession, getAuthenticatedUser } from '@/lib/auth'
-import {
-  getStudentDashboardData,
-  getStudentProgress,
-  getStudentHomework,
-  getStudentMaterials,
-} from '@/lib/student-data'
+import { getStudentDashboardFromDatabase } from '@/lib/dashboard-data'
 import { DashboardClient } from './dashboard-client'
+
+export const dynamic = 'force-dynamic'
 
 export default async function StudentDashboardPage() {
   const session = await getSession()
   if (!session) return null
   const user = await getAuthenticatedUser(session)
 
-  const { upcoming, active, pendingHw, lastPayment } = getStudentDashboardData()
-  const progress = getStudentProgress()
-  const homework = getStudentHomework()
-  const materials = getStudentMaterials()
-  const currentLevel = progress.find((p) => p.current)
+  const dashboard = await getStudentDashboardFromDatabase(user.id)
 
   return (
     <div className="max-w-6xl mx-auto">
       <DashboardClient
         userName={user.name}
-        upcoming={upcoming}
-        active={active}
-        pendingHw={pendingHw}
-        lastPaymentAmount={lastPayment?.amount ?? null}
-        currentLevel={currentLevel}
-        homework={homework}
-        materials={materials}
+        upcoming={dashboard.upcoming}
+        active={dashboard.active}
+        pendingHw={dashboard.pendingHw}
+        lastPaymentAmount={dashboard.lastPaymentAmount}
+        currentLevel={dashboard.currentLevel}
+        homework={dashboard.homework}
+        materials={dashboard.materials}
+        attendance={dashboard.attendance}
+        services={dashboard.services}
       />
     </div>
   )

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { getSession } from '@/lib/auth'
-import { getAdminOverviewData, getAdminBookings, getAdminAssessments } from '@/lib/admin-data'
+import { getManagementDashboardData } from '@/lib/dashboard-data'
 import { DashboardClient } from './dashboard-client'
 
 export const metadata: Metadata = {
@@ -12,18 +12,14 @@ export default async function ManagementDashboardPage() {
   const session = await getSession()
   if (!session) return null
 
-  const [stats, bookings, assessments] = await Promise.all([
-    getAdminOverviewData(),
-    getAdminBookings(),
-    getAdminAssessments(),
-  ])
+  const { stats, initialBookings, initialAssessments } = await getManagementDashboardData()
 
   return (
     <div className="max-w-6xl mx-auto">
       <DashboardClient
         stats={stats}
-        initialBookings={bookings}
-        initialAssessments={assessments}
+        initialBookings={initialBookings}
+        initialAssessments={initialAssessments}
       />
     </div>
   )

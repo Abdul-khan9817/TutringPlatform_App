@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { AdminNotification } from '@/lib/admin-data'
+import { DashboardIcon } from '@/components/ui/dashboard-icon'
 
 export interface ManagementNavbarUser {
   name: string
@@ -109,22 +110,17 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
 
   const getNotifIcon = (type: AdminNotification['type']) => {
     switch (type) {
-      case 'ASSESSMENT':
-        return '📋'
-      case 'BOOKING':
-        return '📅'
-      case 'PAYMENT':
-        return '💳'
-      case 'SYSTEM':
-      default:
-        return '⚡'
+      case 'ASSESSMENT': return 'clipboard' as const
+      case 'BOOKING': return 'calendar' as const
+      case 'PAYMENT': return 'payment' as const
+      default: return 'bolt' as const
     }
   }
 
   const userInitial = (user.name || 'A').charAt(0).toUpperCase()
 
   return (
-    <header className="w-full bg-white border-b border-slate-200 shadow-2xs">
+    <header className="w-full bg-white">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Mobile Toggle & Navigation Anchor */}
         <div className="flex items-center gap-3">
@@ -154,15 +150,6 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
 
         {/* Right: Quick actions, Notifications & Admin Profile */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Quick link: Student Portal */}
-          <Link
-            href="/student/dashboard"
-            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-brand-300 text-xs font-semibold text-slate-700 transition-all shadow-2xs"
-            title="Open Student Portal in new view"
-          >
-            <span>🎓</span>
-            <span>Student Portal</span>
-          </Link>
 
           {/* ── Notification Bell ── */}
           <div className="relative" ref={notifRef}>
@@ -188,7 +175,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
 
             {/* Notifications Popover Dropdown */}
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 overflow-hidden animate-fade-in">
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-2rem)] rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 overflow-hidden animate-fade-in">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/70">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-bold text-slate-900">Notifications</h4>
@@ -210,10 +197,9 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
 
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                   {notifications.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 text-xs">
-                      <p className="text-xl mb-1">🎉</p>
+                    <div className="p-8 text-center text-slate-600 text-xs">
                       <p className="font-semibold text-slate-700">All caught up!</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">No new notifications at this time.</p>
+                      <p className="text-[11px] text-slate-600 mt-0.5">No new notifications at this time.</p>
                     </div>
                   ) : (
                     notifications.map((notif) => (
@@ -230,7 +216,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
                           !notif.read ? 'bg-amber-50/40' : ''
                         }`}
                       >
-                        <span className="text-lg flex-shrink-0 mt-0.5">{getNotifIcon(notif.type)}</span>
+                        <span className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><DashboardIcon name={getNotifIcon(notif.type)} /></span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1">
                             <p className={`text-xs font-bold truncate ${!notif.read ? 'text-slate-900' : 'text-slate-700'}`}>
@@ -241,7 +227,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
                             )}
                           </div>
                           <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{notif.message}</p>
-                          <p className="text-[10px] text-slate-400 mt-1">{notif.timestamp}</p>
+                          <p className="text-[10px] text-slate-600 mt-1">{notif.timestamp}</p>
                         </div>
                       </div>
                     ))
@@ -252,7 +238,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
                   <div className="border-t border-slate-100 p-2.5 bg-slate-50/70 flex justify-between items-center text-xs">
                     <button
                       onClick={handleClearAll}
-                      className="text-slate-500 hover:text-red-600 font-medium text-[11px]"
+                      className="text-slate-600 hover:text-red-600 font-medium text-[11px]"
                     >
                       Clear all
                     </button>
@@ -296,7 +282,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
                 </span>
               </div>
               <svg
-                className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+                className={`h-4 w-4 text-slate-600 transition-transform duration-200 ${
                   profileOpen ? 'rotate-180 text-slate-700' : ''
                 }`}
                 fill="none"
@@ -310,7 +296,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
 
             {/* Profile Menu Dropdown */}
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-72 max-w-xs rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 overflow-hidden animate-fade-in divide-y divide-slate-100">
+              <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white border border-slate-200 shadow-2xl z-50 overflow-hidden animate-fade-in divide-y divide-slate-100">
                 {/* Header with full info */}
                 <div className="p-4 bg-slate-50/70">
                   <div className="flex items-center gap-3">
@@ -327,7 +313,7 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-slate-900 truncate">{user.name}</p>
-                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      <p className="text-xs text-slate-600 truncate">{user.email}</p>
                       <span className="inline-block mt-1 text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
                         Admin Privileges
                       </span>
@@ -342,19 +328,10 @@ export function ManagementNavbar({ user, onOpenMobileMenu }: ManagementNavbarPro
                     onClick={() => setProfileOpen(false)}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-medium transition-colors"
                   >
-                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     <span>Profile & Settings</span>
-                  </Link>
-
-                  <Link
-                    href="/student/dashboard"
-                    onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-brand-700 bg-brand-50 hover:bg-brand-100 font-semibold transition-colors"
-                  >
-                    <span>🎓</span>
-                    <span>Switch to Student View</span>
                   </Link>
                 </div>
 

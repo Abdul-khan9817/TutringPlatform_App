@@ -4,12 +4,48 @@ import { useState } from 'react'
 import type { AssessmentRecord } from '@/lib/admin-data'
 import { PortugalFlagIcon, UKFlagIcon, DualFlagIcon } from '@/components/ui/flags'
 
+const LEVEL_OPTIONS = [
+  'A0 — Total Beginner',
+  'A1 — Beginner',
+  'A2 — Elementary',
+  'B1 — Intermediate',
+  'B2 — Upper Intermediate',
+  'C1 — Advanced',
+  'C2 — Mastery',
+]
+
 export function AssessmentsClient({ initialAssessments }: { initialAssessments: AssessmentRecord[] }) {
   const [assessments, setAssessments] = useState<AssessmentRecord[]>(initialAssessments)
   const [filter, setFilter] = useState('ALL')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [activeAssessment, setActiveAssessment] = useState<AssessmentRecord | null>(null)
+  const [asmName, setAsmName] = useState('')
+  const [asmEmail, setAsmEmail] = useState('')
+  const [asmPhone, setAsmPhone] = useState('')
+  const [asmLanguage, setAsmLanguage] = useState<'PORTUGUESE' | 'ENGLISH' | 'BOTH'>('PORTUGUESE')
+  const [asmDeliveryMode, setAsmDeliveryMode] = useState<'ONLINE' | 'IN_PERSON' | 'BOTH'>('ONLINE')
+  const [asmCurrentLevel, setAsmCurrentLevel] = useState('A1 — Beginner')
+  const [asmGoals, setAsmGoals] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const filtered = assessments.filter((a) => filter === 'ALL' || a.status === filter)
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  const openEditModal = (a: AssessmentRecord) => {
+    setActiveAssessment(a)
+    setAsmName(a.name)
+    setAsmEmail(a.email)
+    setAsmPhone(a.phone ?? '')
+    setAsmLanguage((a.language as 'PORTUGUESE' | 'ENGLISH' | 'BOTH') ?? 'PORTUGUESE')
+    setAsmDeliveryMode((a.deliveryMode as 'ONLINE' | 'IN_PERSON' | 'BOTH') ?? 'ONLINE')
+    setAsmCurrentLevel(a.currentLevel ?? 'A1 — Beginner')
+    setAsmGoals(a.learningGoals ?? '')
+    setShowEditModal(true)
+  }
 
   const handleStatusChange = async (id: string, newStatus: AssessmentRecord['status']) => {
     setUpdatingId(id)
@@ -30,6 +66,82 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
       alert('Failed to update assessment status.')
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeAssessment || !asmName.trim() || !asmEmail.trim()) return
+    setIsSubmitting(true)
+    try {
+      const res = await fetch('/api/v1/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE_ASSESSMENT',
+          payload: {
+            id: activeAssessment.id,
+            data: {
+              name: asmName.trim(),
+              email: asmEmail.trim(),
+              phone: asmPhone.trim(),
+              language: asmLanguage,
+              deliveryMode: asmDeliveryMode,
+              currentLevel: asmCurrentLevel,
+              learningGoals: asmGoals.trim(),
+            },
+          },
+        }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setAssessments((prev) =>
+          prev.map((a) =>
+            a.id === activeAssessment.id
+              ? {
+                  ...a,
+                  name: asmName.trim(),
+                  email: asmEmail.trim(),
+                  phone: asmPhone.trim(),
+                  language: asmLanguage,
+                  deliveryMode: asmDeliveryMode,
+                  currentLevel: asmCurrentLevel,
+                  learningGoals: asmGoals.trim(),
+                }
+              : a
+          )
+        )
+        setShowEditModal(false)
+        setActiveAssessment(null)
+      } else {
+        alert('Failed to update assessment. Please try again.')
+      }
+    } catch {
+      alert('Failed to update assessment. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (a: AssessmentRecord) => {
+    if (!window.confirm(`Delete assessment inquiry for ${a.name}? This cannot be undone.`)) return
+    try {
+      const res = await fetch('/api/v1/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE_ASSESSMENT',
+          payload: { id: a.id },
+        }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setAssessments((prev) => prev.filter((x) => x.id !== a.id))
+      } else {
+        alert('Failed to delete assessment. Please try again.')
+      }
+    } catch {
+      alert('Failed to delete assessment. Please try again.')
     }
   }
 
@@ -87,8 +199,108 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
     }
   }
 
+  // ── Shared modal form fields ──────────────────────────────────────────────
+
+  const AssessmentFormFields = () => (
+    <>
+      {/* Full Name */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
+        <input
+          type="text"
+          required
+          value={asmName}
+          onChange={(e) => setAsmName(e.target.value)}
+          placeholder="e.g. Maria Silva"
+          className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+        />
+      </div>
+
+      {/* Email */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-1">Email Address <span className="text-red-500">*</span></label>
+        <input
+          type="email"
+          required
+          value={asmEmail}
+          onChange={(e) => setAsmEmail(e.target.value)}
+          placeholder="e.g. maria@example.com"
+          className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+        />
+      </div>
+
+      {/* Phone */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-1">Phone / WhatsApp</label>
+        <input
+          type="text"
+          value={asmPhone}
+          onChange={(e) => setAsmPhone(e.target.value)}
+          placeholder="e.g. +351 912 345 678"
+          className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+        />
+      </div>
+
+      {/* Language + Delivery Mode row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1">Language</label>
+          <select
+            value={asmLanguage}
+            onChange={(e) => setAsmLanguage(e.target.value as 'PORTUGUESE' | 'ENGLISH' | 'BOTH')}
+            className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+          >
+            <option value="PORTUGUESE">Portuguese</option>
+            <option value="ENGLISH">English</option>
+            <option value="BOTH">Both</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1">Delivery Mode</label>
+          <select
+            value={asmDeliveryMode}
+            onChange={(e) => setAsmDeliveryMode(e.target.value as 'ONLINE' | 'IN_PERSON' | 'BOTH')}
+            className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+          >
+            <option value="ONLINE">Online</option>
+            <option value="IN_PERSON">In-Person</option>
+            <option value="BOTH">Both</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Current Level */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-1">Current Self-Assessed Level</label>
+        <select
+          value={asmCurrentLevel}
+          onChange={(e) => setAsmCurrentLevel(e.target.value)}
+          className="w-full h-10 px-3 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none bg-white"
+        >
+          {LEVEL_OPTIONS.map((lvl) => (
+            <option key={lvl} value={lvl}>{lvl}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Learning Goals */}
+      <div>
+        <label className="block text-xs font-bold text-slate-700 mb-1">Learning Goals / Notes</label>
+        <textarea
+          rows={4}
+          value={asmGoals}
+          onChange={(e) => setAsmGoals(e.target.value)}
+          placeholder="Describe learning goals, timeline, or any other notes..."
+          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none resize-none"
+        />
+      </div>
+    </>
+  )
+
   return (
     <div className="space-y-6">
+
       {/* ── Filter Tabs ── */}
       <div className="flex flex-wrap items-center gap-2 bg-white rounded-2xl border border-slate-200 p-2 shadow-xs">
         {[
@@ -174,7 +386,7 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
                     </div>
                   </div>
 
-                  {/* Status & Language Track Pills */}
+                  {/* Status & Language Track Pills + Edit button */}
                   <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
                     <span
                       className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${statusConfig.className}`}
@@ -209,6 +421,17 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
                         </>
                       )}
                     </span>
+
+                    {/* Edit Icon Button */}
+                    <button
+                      onClick={() => openEditModal(a)}
+                      title="Edit assessment"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-brand-700 transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
@@ -289,7 +512,7 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
                       <svg className="h-3.5 w-3.5 text-brand-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      <span>Target Learning Goal & Timeline</span>
+                      <span>Target Learning Goal &amp; Timeline</span>
                     </div>
                     <p className="text-xs font-medium text-slate-800 leading-relaxed pl-5">
                       {a.learningGoals}
@@ -340,7 +563,7 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
                     </a>
                   </div>
 
-                  {/* Workflow Pipeline Action Buttons */}
+                  {/* Workflow Pipeline Action Buttons + Delete */}
                   <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
                     {a.status === 'NEW' && (
                       <button
@@ -371,6 +594,14 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
                         Mark Completed
                       </button>
                     )}
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => handleDelete(a)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200/80 transition-colors"
+                    >
+                      Delete Inquiry
+                    </button>
                   </div>
                 </div>
               </div>
@@ -378,6 +609,45 @@ export function AssessmentsClient({ initialAssessments }: { initialAssessments: 
           })
         )}
       </div>
+
+      {/* ── Edit Assessment Modal ── */}
+      {showEditModal && activeAssessment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-extrabold text-slate-900">Edit Assessment Inquiry</h2>
+              <button
+                onClick={() => { setShowEditModal(false); setActiveAssessment(null) }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <AssessmentFormFields />
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditModal(false); setActiveAssessment(null) }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white font-semibold text-sm shadow-sm transition-all disabled:opacity-60"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

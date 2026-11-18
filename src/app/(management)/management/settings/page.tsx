@@ -24,19 +24,12 @@ export default async function ManagementSettingsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full">
-            Admin Authority & Security
-          </span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Platform Settings & Security Center
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Manage teacher credentials, academy operational parameters, website SEO & content, and inspect audit logs.
+      <header className="border-b border-slate-200 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Manage your account, academy operations, website details, and admin activity.
         </p>
-      </div>
+      </header>
 
       <SettingsClient
         initialSettings={settings}

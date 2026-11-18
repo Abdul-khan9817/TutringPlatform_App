@@ -210,6 +210,38 @@ export async function invalidateAllUserSessions(userId: string) {
 // ─── Get full user from session ───────────────────────────────────────────────
 
 export async function getAuthenticatedUser(session: JWTPayload) {
+  // The system administrator is authenticated from configured credentials and
+  // does not have a corresponding row in the application database. Skip the
+  // database lookup (which can be slow when a hosted database is waking up).
+  if (session.role === 'ADMIN' && session.sub === 'admin-system-master') {
+    let adminName = process.env.ADMIN_NAME ?? 'Administrator'
+    let adminEmail = session.email
+    let adminAvatar = ''
+    let adminTitle = 'Lead Administrator'
+    try {
+      const { getAdminProfile } = await import('./admin-data')
+      const profile = await getAdminProfile()
+      if (profile.name) adminName = profile.name
+      if (profile.email) adminEmail = profile.email
+      if (profile.avatarUrl) adminAvatar = profile.avatarUrl
+      if (profile.title) adminTitle = profile.title
+    } catch {}
+
+    return {
+      id: session.sub,
+      email: adminEmail,
+      name: adminName,
+      role: 'ADMIN' as Role,
+      isActive: true,
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+      studentProfile: null,
+      tutorProfile: null,
+      avatarUrl: adminAvatar,
+      title: adminTitle,
+    }
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.sub, isActive: true },
@@ -229,6 +261,40 @@ export async function getAuthenticatedUser(session: JWTPayload) {
     if (user) return user
   } catch (err) {
     logger.warn('Database query failed for authenticated user', { error: String(err) })
+  }
+
+  // Local development can run without DATABASE_URL. In that case, allow
+  // students authenticated from the in-memory account store to load the app.
+  if (session.role === 'STUDENT') {
+    try {
+      const { findStudentById } = await import('./admin-data')
+      const student = await findStudentById(session.sub)
+      if (student?.status === 'ACTIVE') {
+        return {
+          id: student.id,
+          email: student.email,
+          name: student.name,
+          role: 'STUDENT' as Role,
+          isActive: true,
+          emailVerifiedAt: new Date(),
+          createdAt: new Date(student.joinedAt),
+          studentProfile: {
+            id: student.id,
+            userId: student.id,
+            createdAt: new Date(student.joinedAt),
+            updatedAt: new Date(student.joinedAt),
+            phone: student.phone || null,
+            preferredLanguage: student.preferredLanguage,
+            currentLevel: student.currentLevel,
+            learningGoals: null,
+            timezone: 'Europe/Lisbon',
+            companyName: null,
+            notes: student.notes ?? null,
+          },
+          tutorProfile: null,
+        }
+      }
+    } catch {}
   }
 
   // Resilient fallback for ADMIN session (e.g. system admin credentials)

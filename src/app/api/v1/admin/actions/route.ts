@@ -3,6 +3,13 @@ import { requireRole } from '@/lib/auth'
 import {
   updateAdminBookingStatus,
   updateAdminAssessmentStatus,
+  addAdminAssessment,
+  updateAdminAssessment,
+  deleteAdminAssessment,
+  getAdminPayments,
+  addAdminPayment,
+  updateAdminPayment,
+  deleteAdminPayment,
   addAdminStudent,
   updateAdminStudent,
   deactivateAdminStudent,
@@ -35,6 +42,8 @@ import {
   markAllAdminNotificationsAsRead,
   clearAdminNotifications,
   getAuditLogs,
+  deleteAuditLog,
+  clearAuditLogs,
 } from '@/lib/admin-data'
 
 export async function POST(req: NextRequest) {
@@ -127,6 +136,21 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Assessments Management ──
+    if (action === 'ADD_ASSESSMENT') {
+      const created = await addAdminAssessment(payload)
+      return NextResponse.json({ success: true, data: created })
+    }
+
+    if (action === 'UPDATE_ASSESSMENT') {
+      const updated = await updateAdminAssessment(payload.id, payload.data)
+      return NextResponse.json({ success: true, data: updated })
+    }
+
+    if (action === 'DELETE_ASSESSMENT') {
+      const deleted = await deleteAdminAssessment(payload.id)
+      return NextResponse.json({ success: true, data: deleted })
+    }
+
     if (action === 'UPDATE_ASSESSMENT_STATUS') {
       const updated = await updateAdminAssessmentStatus(
         payload.id,
@@ -135,6 +159,27 @@ export async function POST(req: NextRequest) {
         payload.evaluationNotes
       )
       return NextResponse.json({ success: true, data: updated })
+    }
+
+    // ── Payments Management ──
+    if (action === 'GET_PAYMENTS') {
+      const payments = await getAdminPayments()
+      return NextResponse.json({ success: true, data: payments })
+    }
+
+    if (action === 'ADD_PAYMENT') {
+      const created = await addAdminPayment(payload)
+      return NextResponse.json({ success: true, data: created })
+    }
+
+    if (action === 'UPDATE_PAYMENT') {
+      const updated = await updateAdminPayment(payload.id, payload.data)
+      return NextResponse.json({ success: true, data: updated })
+    }
+
+    if (action === 'DELETE_PAYMENT') {
+      const deleted = await deleteAdminPayment(payload.id)
+      return NextResponse.json({ success: true, data: deleted })
     }
 
     // ── Learning Materials Management ──
@@ -198,6 +243,17 @@ export async function POST(req: NextRequest) {
     if (action === 'GET_AUDIT_LOGS') {
       const logs = await getAuditLogs()
       return NextResponse.json({ success: true, data: logs })
+    }
+
+    if (action === 'DELETE_AUDIT_LOG') {
+      const deleted = await deleteAuditLog(payload.id)
+      if (!deleted) return NextResponse.json({ success: false, error: 'Activity entry not found.' }, { status: 404 })
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'CLEAR_AUDIT_LOGS') {
+      await clearAuditLogs()
+      return NextResponse.json({ success: true })
     }
 
     // ── Admin Profile & Notifications ──

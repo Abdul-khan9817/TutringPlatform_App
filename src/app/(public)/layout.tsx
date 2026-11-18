@@ -6,7 +6,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     <>
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <Navbar />
-      <main id="main-content" className="pt-16">{children}</main>
+      <main id="main-content">{children}</main>
       <Footer />
     </>
   )

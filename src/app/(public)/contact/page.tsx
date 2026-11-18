@@ -14,7 +14,7 @@ export default function ContactPage() {
   return (
     <div>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-brand-900 to-brand-700 text-white py-16 md:py-20">
+      <section className="bg-gradient-to-br from-brand-900 to-brand-700 text-white pt-24 pb-16 md:pt-28 md:pb-20">
         <div className="container-wide text-center">
           <h1 className="text-4xl font-extrabold mb-4">Contact Us</h1>
           <p className="text-lg text-brand-100 max-w-xl mx-auto">

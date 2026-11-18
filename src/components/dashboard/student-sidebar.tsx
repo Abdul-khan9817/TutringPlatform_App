@@ -1,4 +1,5 @@
 'use client'
+
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -30,7 +31,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/student/packages',
-    label: 'Packages',
+    label: 'Lesson Packages',
     icon: ({ className }) => (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -39,7 +40,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/student/progress',
-    label: 'Progress',
+    label: 'My Progress',
     icon: ({ className }) => (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -48,7 +49,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/student/materials',
-    label: 'Materials',
+    label: 'Study Materials',
     icon: ({ className }) => (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -57,7 +58,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/student/homework',
-    label: 'Homework',
+    label: 'Homework & Tasks',
     icon: ({ className }) => (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -66,7 +67,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/student/payments',
-    label: 'Payments',
+    label: 'Payments & Receipts',
     icon: ({ className }) => (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -75,7 +76,7 @@ const navItems: NavItem[] = [
   },
   {
     href: '/student/profile',
-    label: 'Profile',
+    label: 'Student Profile',
     icon: ({ className }) => (
       <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -84,12 +85,32 @@ const navItems: NavItem[] = [
   },
 ]
 
-interface User { name: string; email: string; role?: string }
+interface User {
+  name: string
+  email: string
+  role?: string
+}
 
-export function StudentSidebar({ user }: { user: User }) {
+interface StudentSidebarProps {
+  user: User
+  collapsed?: boolean
+  onToggleCollapse?: () => void
+  mobileOpen?: boolean
+  setMobileOpen?: (open: boolean) => void
+}
+
+export function StudentSidebar({
+  user,
+  collapsed = false,
+  onToggleCollapse,
+  mobileOpen: controlledMobileOpen,
+  setMobileOpen: controlledSetMobileOpen,
+}: StudentSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false)
+  const mobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : internalMobileOpen
+  const setMobileOpen = controlledSetMobileOpen || setInternalMobileOpen
 
   const handleLogout = async () => {
     await fetch('/api/v1/auth/logout', { method: 'POST' })
@@ -97,119 +118,185 @@ export function StudentSidebar({ user }: { user: User }) {
     router.refresh()
   }
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white">
-      <div className="p-5 border-b border-slate-200">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="h-7 w-7 rounded-lg bg-brand-700 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-800 transition-colors">
-            <span className="text-white font-bold text-xs">W</span>
-          </div>
-          <span className="font-bold text-slate-900 text-sm leading-tight">WorkSpeak Portugal</span>
-        </Link>
-        {user.role === 'ADMIN' && (
-          <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded uppercase tracking-wider ml-9 mt-1 inline-block">
-            Admin View
-          </span>
-        )}
-      </div>
-      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto" aria-label="Student navigation">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href
-          const IconComponent = item.icon
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-brand-700 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 hover:translate-x-1'
-              }`}
-              onClick={() => setMobileOpen(false)}
-            >
-              <IconComponent className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-              {item.label}
-            </Link>
-          )
-        })}
+  const userInitial = (user.name || 'S').charAt(0).toUpperCase()
 
-        {/* Admin Quick Switcher */}
-        {user.role === 'ADMIN' && (
-          <div className="pt-3 pb-1 border-t border-slate-100 mt-4">
-            <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              Admin Privilege
-            </p>
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
+    const isSlim = !isMobile && collapsed
+
+    return (
+      <div className="flex flex-col h-full bg-white select-none">
+        {/* Header / Brand */}
+        <div className={`border-b border-slate-200 transition-all duration-300 ${isSlim ? 'p-3' : 'p-4 sm:p-5'}`}>
+          {/* Top Portuguese tricolor accent line */}
+          <div className="h-[2px] w-full bg-gradient-to-r from-emerald-500 via-red-500 to-amber-400 mb-3 rounded-full" />
+
+          <div className={`flex items-center ${isSlim ? 'justify-center' : 'justify-between'}`}>
             <Link
-              href="/management/dashboard"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-900 bg-amber-100/80 hover:bg-amber-200 transition-colors"
+              href="/student/dashboard"
+              className="flex items-center gap-2.5 group"
+              title="WorkSpeak Portugal Student Portal"
             >
-              <span>🛡️</span>
-              <span>Return to Admin Portal</span>
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                <span className="text-white font-extrabold text-sm">W</span>
+              </div>
+              {!isSlim && (
+                <div className="flex flex-col overflow-hidden animate-fade-in">
+                  <span className="font-extrabold text-slate-900 text-sm leading-tight truncate">
+                    WorkSpeak<span className="text-brand-600"> Portugal</span>
+                  </span>
+                  <span className="text-[10px] text-slate-600 font-medium">Student Portal</span>
+                </div>
+              )}
             </Link>
-            <Link
-              href="/"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors mt-1"
-            >
-              <span>🌐</span>
-              <span>View Public Website</span>
-            </Link>
+
+            {/* Desktop Collapse Toggle Button */}
+            {!isMobile && onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-700 hover:bg-slate-100 transition-colors focus:outline-none"
+              >
+                <svg
+                  className={`h-4 w-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : 'rotate-0'}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
           </div>
-        )}
-      </nav>
-      <div className="p-4 border-t border-slate-200">
-        <div className="mb-3 px-3">
-          <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
-          <p className="text-xs text-slate-500 truncate">{user.email}</p>
+
+          {!isSlim && (
+            <div className="mt-2.5 animate-fade-in flex items-center gap-1.5">
+              <span className="text-[10px] font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md uppercase tracking-wider border border-emerald-200">
+                Learner Portal
+              </span>
+              <span className="text-[10px] font-semibold text-slate-600">
+                A1–C1 Track
+              </span>
+            </div>
+          )}
         </div>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+
+        {/* Navigation Items */}
+        <nav
+          className={`flex-1 overflow-y-auto space-y-1 transition-all duration-300 ${isSlim ? 'p-2' : 'p-3'}`}
+          aria-label="Student navigation"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Log Out
-        </button>
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/student/dashboard' && pathname.startsWith(item.href))
+            const IconComponent = item.icon
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={isSlim ? item.label : undefined}
+                className={`flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-150 ${
+                  isSlim ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                } ${
+                  isActive
+                    ? 'bg-brand-900 text-white shadow-xs ring-1 ring-brand-950'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+                onClick={() => setMobileOpen(false)}
+              >
+                <IconComponent className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-600'}`} />
+                {!isSlim && <span className="truncate animate-fade-in">{item.label}</span>}
+              </Link>
+            )
+          })}
+
+          {/* Quick Access to Main Website & Admin Switcher */}
+          {!isSlim && (
+            <div className="pt-3 pb-1 border-t border-slate-100 mt-4 space-y-1 animate-fade-in">
+              <p className="px-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Quick Navigation
+              </p>
+              <Link
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              >
+                <span>🌐</span>
+                <span>Main Academy Website</span>
+              </Link>
+
+              {user.role === 'ADMIN' && (
+                <Link
+                  href="/management/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-200/80"
+                >
+                  <span>🛡️</span>
+                  <span>Return to Admin Portal</span>
+                </Link>
+              )}
+            </div>
+          )}
+        </nav>
+
+        {/* Footer: User profile info + logout */}
+        <div className={`border-t border-slate-200 transition-all duration-300 ${isSlim ? 'p-2' : 'p-3 sm:p-4'}`}>
+          <div className="flex flex-col gap-3">
+            <div className={`flex items-center gap-3 ${isSlim ? 'justify-center' : ''}`}>
+              <div
+                className="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-600 via-brand-700 to-brand-800 text-white font-extrabold text-sm flex items-center justify-center flex-shrink-0 shadow-xs cursor-pointer"
+                title={user.name}
+                onClick={() => router.push('/student/profile')}
+              >
+                {userInitial}
+              </div>
+              {!isSlim && (
+                <div className="flex-1 min-w-0 animate-fade-in">
+                  <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
+                  <p className="text-[11px] text-slate-600 truncate">{user.email}</p>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Log out"
+              aria-label="Log out"
+              className={`relative flex h-10 flex-shrink-0 items-center rounded-xl border border-red-200 bg-red-50 text-red-700 shadow-xs transition-all duration-200 hover:border-red-300 hover:bg-red-100 hover:text-red-800 hover:shadow-sm active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 ${isSlim ? 'w-10 justify-center self-center' : 'w-full justify-start pl-12 text-xs font-semibold'}`}
+            >
+              <svg className={`h-4 w-4 ${isSlim ? '' : 'absolute left-3'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {!isSlim && <span>Log out</span>}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col bg-white border-r border-slate-200 z-40">
+      {/* Desktop Persistent Sidebar */}
+      <aside
+        className={`hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:flex-col bg-white border-r border-slate-200 transition-[width] duration-300 ease-in-out shadow-xs ${
+          collapsed ? 'lg:w-20' : 'lg:w-64'
+        }`}
+        aria-label="Student sidebar"
+      >
         <SidebarContent />
-      </div>
-      {/* Mobile header */}
-      <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 flex items-center justify-between px-4 h-14 shadow-sm">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-brand-700 flex items-center justify-center">
-            <span className="text-white font-bold text-xs">W</span>
-          </div>
-          <span className="font-bold text-slate-900 text-sm">WorkSpeak Portugal</span>
-        </Link>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
-          className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-        >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {mobileOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
-      </div>
-      {/* Mobile drawer */}
+      </aside>
+
+      {/* Mobile Drawer Overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 animate-fade-in">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl animate-slide-up">
-            <SidebarContent />
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white shadow-2xl animate-slide-up flex flex-col z-10">
+            <SidebarContent isMobile={true} />
           </div>
         </div>
       )}

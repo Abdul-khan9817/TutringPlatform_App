@@ -4,19 +4,48 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export function verifyOrigin(req: NextRequest): boolean {
   const origin = req.headers.get('origin')
-  const appUrl = process.env.APP_URL ?? 'http://localhost:3000'
 
   if (!origin) {
     // Allow same-origin requests without Origin header (e.g., server-side)
     return true
   }
 
-  const allowedOrigins = [
-    appUrl,
-    process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-  ].filter(Boolean)
+  // 1. Allow same-origin requests matching the current request's own host
+  const host = req.headers.get('host')
+  const proto =
+    req.headers.get('x-forwarded-proto') ??
+    (req.nextUrl?.protocol ? req.nextUrl.protocol.replace(':', '') : 'http')
+  if (host) {
+    if (
+      origin === `${proto}://${host}` ||
+      origin === `http://${host}` ||
+      origin === `https://${host}`
+    ) {
+      return true
+    }
+  }
 
-  return allowedOrigins.some((allowed) => origin === allowed)
+  if (req.nextUrl && origin === req.nextUrl.origin) {
+    return true
+  }
+
+  // 2. Allow configured app URLs
+  const appUrl = process.env.APP_URL
+  const publicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  const allowedOrigins = [appUrl, publicAppUrl].filter(Boolean) as string[]
+
+  if (allowedOrigins.includes(origin)) {
+    return true
+  }
+
+  // 3. In development, allow any localhost or 127.0.0.1 port
+  if (process.env.NODE_ENV !== 'production') {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 export function originGuard(req: NextRequest): NextResponse | null {

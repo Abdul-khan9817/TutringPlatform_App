@@ -76,10 +76,29 @@ const navLinks = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false)
+  const [pendingPath, setPendingPath] = useState<string | null>(null)
+  const [showProgress, setShowProgress] = useState(false)
   const pathname = usePathname()
 
+  const handleNavigate = (href: string) => {
+    setPendingPath(href === pathname ? null : href)
+    setOpen(false)
+  }
+
   // Close mobile drawer on route transition
-  useEffect(() => { setOpen(false) }, [pathname])
+  useEffect(() => {
+    setOpen(false)
+    setPendingPath(null)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!pendingPath) {
+      setShowProgress(false)
+      return
+    }
+    const timer = window.setTimeout(() => setShowProgress(true), 120)
+    return () => window.clearTimeout(timer)
+  }, [pendingPath])
 
   // Lock body scroll while mobile drawer is open
   useEffect(() => {
@@ -90,10 +109,9 @@ export function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a1738] border-b border-white/10 shadow-lg shadow-black/25">
       {/* Portuguese tricolor accent line */}
-      <div
-        className="h-[2.5px] w-full bg-gradient-to-r from-emerald-500 via-red-500 to-amber-400"
-        aria-hidden="true"
-      />
+      <div className="relative h-[2.5px] w-full overflow-hidden bg-gradient-to-r from-emerald-500 via-red-500 to-amber-400" aria-hidden="true">
+        {showProgress && <span key={pendingPath} className="public-nav-progress absolute inset-y-0 left-0 w-2/5 bg-gradient-to-r from-transparent via-white to-transparent" />}
+      </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
@@ -101,6 +119,7 @@ export function Navbar() {
           {/* ── Brand Logo ── */}
           <Link
             href="/"
+            onClick={() => handleNavigate('/')}
             className="flex items-center gap-3 group flex-shrink-0"
             aria-label="WorkSpeak Portugal Homepage"
           >
@@ -126,6 +145,7 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={() => handleNavigate(link.href)}
                   className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm transition-colors duration-150 ${
                     isActive
                       ? 'bg-white/20 text-white font-bold ring-1 ring-white/30 border-b-2 border-amber-400 shadow-sm'
@@ -145,6 +165,7 @@ export function Navbar() {
             {/* Green Sign In Button */}
             <Link
               href="/login"
+              onClick={() => handleNavigate('/login')}
               className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm transition-colors duration-150 ${
                 pathname === '/login'
                   ? 'bg-emerald-500 text-white font-bold ring-2 ring-white shadow-lg'
@@ -161,6 +182,7 @@ export function Navbar() {
             {/* Book Free Assessment Button */}
             <Link
               href="/assessment"
+              onClick={() => handleNavigate('/assessment')}
               className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm transition-colors duration-150 whitespace-nowrap ${
                 pathname === '/assessment'
                   ? 'bg-amber-300 text-slate-950 font-extrabold ring-2 ring-white shadow-lg scale-102'
@@ -208,7 +230,7 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleNavigate(link.href)}
                   className={`flex items-center justify-between px-4 py-3.5 rounded-xl text-sm transition-all duration-150 ${
                     isActive
                       ? 'bg-white/20 text-white font-bold border-l-4 border-amber-400 pl-3.5 shadow-sm'
@@ -242,7 +264,7 @@ export function Navbar() {
             {/* Sign In (Green Button with Active State) */}
             <Link
               href="/login"
-              onClick={() => setOpen(false)}
+              onClick={() => handleNavigate('/login')}
               className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm transition-all duration-150 ${
                 pathname === '/login'
                   ? 'bg-emerald-500 text-white font-bold ring-2 ring-white shadow-lg'
@@ -258,7 +280,7 @@ export function Navbar() {
             {/* Book Free Assessment (Amber CTA Button with Active State) */}
             <Link
               href="/assessment"
-              onClick={() => setOpen(false)}
+              onClick={() => handleNavigate('/assessment')}
               className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm transition-all duration-150 ${
                 pathname === '/assessment'
                   ? 'bg-amber-300 text-slate-950 font-extrabold ring-2 ring-white shadow-lg'

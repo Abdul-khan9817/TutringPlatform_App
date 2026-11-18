@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Create Your Account' }
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-[80vh] bg-slate-50 flex items-center py-16 px-4">
+    <div className="min-h-[80vh] bg-slate-50 flex items-center pt-24 pb-16 sm:pt-28 px-4">
       <div className="w-full max-w-lg mx-auto">
         {/* Logo */}
         <div className="text-center mb-8">

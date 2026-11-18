@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function AdminLoginPage() {
   return (
-    <div className="min-h-[82vh] bg-slate-50/70 flex items-center justify-center py-12 px-4 sm:px-6">
+    <div className="min-h-[82vh] bg-slate-50/70 flex items-center justify-center pt-24 pb-12 sm:pt-28 px-4 sm:px-6">
       <div className="w-full max-w-[420px]">
         {/* Brand Header */}
         <div className="text-center mb-8">

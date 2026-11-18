@@ -1,16 +1,25 @@
-import { getSession } from '@/lib/auth'
-import { getStudentProfile } from '@/lib/student-data'
+import { redirect } from 'next/navigation'
+import { getAuthenticatedUser, getSession } from '@/lib/auth'
 import { ProfileClient } from './profile-client'
 
 export default async function StudentProfilePage() {
   const session = await getSession()
-  if (!session) return null
+  if (!session) redirect('/login')
+  if (session.role !== 'STUDENT') redirect('/management/dashboard')
 
-  const profile = getStudentProfile()
+  const user = await getAuthenticatedUser(session)
+  const profile = {
+    name: user.name,
+    email: user.email,
+    isActive: user.isActive,
+    phone: user.studentProfile?.phone ?? '',
+    preferredLanguage: user.studentProfile?.preferredLanguage ?? 'PORTUGUESE',
+    currentLevel: user.studentProfile?.currentLevel ?? '',
+    learningGoals: user.studentProfile?.learningGoals ?? '',
+    timezone: user.studentProfile?.timezone ?? 'Europe/Lisbon',
+    companyName: user.studentProfile?.companyName ?? '',
+    enrolledAt: user.createdAt.toISOString(),
+  }
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      <ProfileClient initialProfile={profile} />
-    </div>
-  )
+  return <ProfileClient initialProfile={profile} />
 }

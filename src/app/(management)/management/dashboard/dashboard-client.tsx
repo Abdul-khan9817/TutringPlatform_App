@@ -1,5 +1,7 @@
 'use client'
 
+import { EmptyStateIcon } from '@/components/ui/empty-state-icon'
+import { DashboardIcon } from '@/components/ui/dashboard-icon'
 import { useState } from 'react'
 import Link from 'next/link'
 import type { BookingRecord, AssessmentRecord } from '@/lib/admin-data'
@@ -208,7 +210,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
   const newAssessments = assessments.filter((a) => a.status === 'NEW' || a.status === 'CONTACTED')
 
   return (
-    <div className="space-y-8 animate-fade-in font-sans">
+    <div className="space-y-8 dashboard-page font-sans">
       {/* ── 1. Page Header (Consistent with Public Website Typography & Layout) ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
@@ -216,14 +218,11 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             <span className="text-xs font-bold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/80 px-2.5 py-0.5 rounded-full">
               Platform Administration
             </span>
-            <span className="text-xs font-medium text-slate-500">
-              · Lisbon Executive Center (WET)
-            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Dashboard Overview
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             Real-time academy performance, confirmed lessons, admissions pipeline, and student credits.
           </p>
         </div>
@@ -244,7 +243,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             onClick={() => setShowStudentModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-semibold text-sm shadow-2xs transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
           >
-            <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
             <span>Enroll Student</span>
@@ -252,13 +251,13 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
         </div>
       </div>
 
-      {/* ── 2. Four Structured KPI Metric Cards (Matching Public Site Style) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* Academy metrics */}
+      <div className="dashboard-metrics grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Card 1: Monthly Revenue */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Monthly Revenue
               </span>
               <div className="h-8 w-8 rounded-lg bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center font-bold text-sm">
@@ -270,11 +269,8 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-emerald-700 font-semibold inline-flex items-center gap-1">
-              <span>↑ +14.2%</span>
-              <span className="text-slate-400 font-normal">vs last cycle</span>
-            </span>
-            <span className="text-slate-400 font-medium">EUR Ledger</span>
+            <span className="text-slate-600 font-medium">Payments received this month</span>
+            <Link href="/management/payments" className="font-semibold text-brand-700 hover:underline">View payments</Link>
           </div>
         </div>
 
@@ -282,12 +278,10 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
         <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Enrolled Students
               </span>
-              <div className="h-8 w-8 rounded-lg bg-brand-50 border border-brand-200/80 text-brand-700 flex items-center justify-center text-sm">
-                👥
-              </div>
+              <div className="h-8 w-8 rounded-lg bg-brand-50 border border-brand-200/80 text-brand-700 flex items-center justify-center text-sm"><DashboardIcon name="users" className="h-4 w-4" /></div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -298,8 +292,8 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
               </span>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Active across CEFR A1–C1</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+            <span>Active student accounts</span>
             <Link href="/management/students" className="font-semibold text-brand-700 hover:underline">
               View All →
             </Link>
@@ -310,12 +304,10 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
         <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Scheduled Lessons
               </span>
-              <div className="h-8 w-8 rounded-lg bg-blue-50 border border-blue-200/80 text-blue-700 flex items-center justify-center text-sm">
-                📅
-              </div>
+              <div className="h-8 w-8 rounded-lg bg-blue-50 border border-blue-200/80 text-blue-700 flex items-center justify-center text-sm"><DashboardIcon name="calendar" className="h-4 w-4" /></div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -326,9 +318,9 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
               </span>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Next starting in ~2h</span>
-            <span className="text-slate-400">14 Online · 4 Lisbon</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+            <span>Confirmed future sessions</span>
+            <Link href="/management/bookings" className="font-semibold text-brand-700 hover:underline">Manage schedule</Link>
           </div>
         </div>
 
@@ -336,12 +328,10 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
         <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Action Items
               </span>
-              <div className="h-8 w-8 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm">
-                ⚡
-              </div>
+              <div className="h-8 w-8 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm"><DashboardIcon name="bolt" className="h-4 w-4" /></div>
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -353,7 +343,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-500">New candidate assessments</span>
+            <span className="text-slate-600">Pending assessments and bookings</span>
             <Link href="/management/assessments" className="font-semibold text-brand-700 hover:underline">
               Review Pipeline →
             </Link>
@@ -364,32 +354,21 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
       {/* ── 3. Operational Pulse Banner ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-brand-50 border border-brand-100 text-brand-700 flex items-center justify-center text-sm flex-shrink-0">
-            📊
-          </div>
+          <div className="h-9 w-9 rounded-xl bg-brand-50 border border-brand-100 text-brand-700 flex items-center justify-center text-sm flex-shrink-0"><DashboardIcon name="chart" className="h-4 w-4" /></div>
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Curriculum Health</h3>
-            <p className="text-sm font-extrabold text-slate-900">WorkSpeak Active Tracks & Attendance</p>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">Manage learning</h3>
+            <p className="text-sm font-extrabold text-slate-900">Keep lessons and resources up to date</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span>Portuguese Track (62%)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue-500" />
-            <span>English Track (38%)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span className="font-semibold text-slate-800">Attendance Rate: 97.4%</span>
-          </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <Link href="/management/students" className="rounded-xl border border-slate-200 px-3 py-2 text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800">Students</Link>
+          <Link href="/management/materials" className="rounded-xl border border-slate-200 px-3 py-2 text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800">Materials</Link>
+          <Link href="/management/payments" className="rounded-xl border border-slate-200 px-3 py-2 text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800">Payments</Link>
         </div>
       </div>
 
-      {/* ── 4. Main Two-Column Operational Center ── */}
+      {/* 4. Main Two-Column Operational Center */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
         {/* Left Column (7 cols): Confirmed Lesson Schedule */}
         <div className="lg:col-span-7 space-y-4">
@@ -398,7 +377,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
               <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
                 Confirmed Lesson Schedule
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-600 mt-0.5">
                 Active student sessions with meeting links and attendance confirmation
               </p>
             </div>
@@ -423,10 +402,10 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
 
           <div className="space-y-3">
             {filteredBookings.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-500">
-                <span className="text-3xl block mb-2">📅</span>
+              <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-600">
+                <EmptyStateIcon name="calendar" />
                 <p className="font-bold text-sm text-slate-800">No scheduled lessons found</p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-600 mt-1">
                   There are no confirmed classes matching the selected delivery filter.
                 </p>
               </div>
@@ -455,16 +434,16 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
                             {isPortuguese ? <PortugalFlagIcon /> : <UKFlagIcon />}
                             <span>{isPortuguese ? 'Portuguese' : 'English'}</span>
                           </span>
-                          <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
                             {b.deliveryMode === 'ONLINE' ? 'Online' : 'In-Person (Lisbon)'}
                           </span>
                         </div>
 
                         <p className="text-xs text-slate-600 truncate">{b.serviceName}</p>
 
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
                           <span className="font-semibold text-slate-700 flex items-center gap-1">
-                            <svg className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="h-3.5 w-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             {formatDateTime(b.startAt)}
@@ -506,7 +485,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
                       <button
                         onClick={() => handleUpdateBooking(b.id, 'CANCELLED')}
                         disabled={actionLoadingId === b.id}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        className="p-1.5 rounded-xl text-slate-600 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                         title="Cancel class"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -538,7 +517,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
               <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
                 Admissions Pipeline
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-600 mt-0.5">
                 Prospective students awaiting level evaluations
               </p>
             </div>
@@ -553,10 +532,10 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
 
           <div className="space-y-3">
             {newAssessments.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500">
-                <span className="text-2xl block mb-1">🎉</span>
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-600">
+                <EmptyStateIcon name="inbox" />
                 <p className="font-bold text-sm text-slate-800">Admissions inbox is clear</p>
-                <p className="text-xs text-slate-400 mt-1">No pending inquiries requiring evaluation right now.</p>
+                <p className="text-xs text-slate-600 mt-1">No pending inquiries requiring evaluation right now.</p>
               </div>
             ) : (
               newAssessments.slice(0, 3).map((a) => {
@@ -571,7 +550,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h4 className="text-sm font-extrabold text-slate-900 leading-snug">{a.name}</h4>
-                        <p className="text-xs text-slate-500">{a.email}</p>
+                        <p className="text-xs text-slate-600">{a.email}</p>
                       </div>
 
                       <span
@@ -588,7 +567,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
                     {/* Info Grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
                           Track
                         </span>
                         <span className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
@@ -597,7 +576,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
                           Level
                         </span>
                         <span className="font-bold text-brand-700 mt-0.5 block">{a.currentLevel}</span>
@@ -606,7 +585,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
 
                     {/* Candidate Goal Note */}
                     <div className="text-xs bg-slate-50/70 p-2.5 rounded-lg border border-slate-100 text-slate-700">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-0.5">
                         Learning Goal
                       </span>
                       <p className="line-clamp-2 leading-relaxed text-[11px] font-medium text-slate-600">{a.learningGoals}</p>
@@ -628,7 +607,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
                         <span className="text-slate-300">·</span>
                         <a
                           href={`mailto:${a.email}`}
-                          className="text-slate-500 hover:text-slate-800 font-semibold"
+                          className="text-slate-600 hover:text-slate-800 font-semibold"
                           title="Send Email"
                         >
                           Email
@@ -668,14 +647,12 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
           href="/management/students"
           className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 group flex items-center gap-3.5"
         >
-          <div className="h-10 w-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-700 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
-            👥
-          </div>
+          <div className="h-10 w-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-700 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform"><DashboardIcon name="users" className="h-4 w-4" /></div>
           <div className="min-w-0">
             <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-brand-700 transition-colors">
               Student Accounts
             </h4>
-            <p className="text-xs text-slate-500 truncate mt-0.5">CEFR levels, profiles & credits</p>
+            <p className="text-xs text-slate-600 truncate mt-0.5">CEFR levels, profiles & credits</p>
           </div>
         </Link>
 
@@ -683,14 +660,12 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
           href="/management/materials"
           className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 group flex items-center gap-3.5"
         >
-          <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
-            📚
-          </div>
+          <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform"><DashboardIcon name="book" className="h-4 w-4" /></div>
           <div className="min-w-0">
             <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
               Learning Materials
             </h4>
-            <p className="text-xs text-slate-500 truncate mt-0.5">Upload PDFs, audios & exercises</p>
+            <p className="text-xs text-slate-600 truncate mt-0.5">Upload PDFs, audios & exercises</p>
           </div>
         </Link>
 
@@ -698,14 +673,12 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
           href="/management/payments"
           className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-400 transition-all duration-200 group flex items-center gap-3.5"
         >
-          <div className="h-10 w-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
-            💳
-          </div>
+          <div className="h-10 w-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform"><DashboardIcon name="payment" className="h-4 w-4" /></div>
           <div className="min-w-0">
             <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-blue-700 transition-colors">
               Invoices & Fees
             </h4>
-            <p className="text-xs text-slate-500 truncate mt-0.5">EUR transactions & package sales</p>
+            <p className="text-xs text-slate-600 truncate mt-0.5">EUR transactions & package sales</p>
           </div>
         </Link>
 
@@ -720,7 +693,7 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-slate-700 transition-colors">
               Platform Settings
             </h4>
-            <p className="text-xs text-slate-500 truncate mt-0.5">Admin profile & platform security</p>
+            <p className="text-xs text-slate-600 truncate mt-0.5">Admin profile & platform security</p>
           </div>
         </Link>
       </div>
@@ -732,11 +705,11 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base">Schedule New Lesson</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Book an individual or workplace session</p>
+                <p className="text-xs text-slate-600 mt-0.5">Book an individual or workplace session</p>
               </div>
               <button
                 onClick={() => setShowBookingModal(false)}
-                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
+                className="text-slate-600 hover:text-slate-600 rounded-lg p-1"
               >
                 ✕
               </button>
@@ -857,11 +830,11 @@ export function DashboardClient({ stats, initialBookings, initialAssessments }: 
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base">Enroll New Student</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Create learner account and assign curriculum track</p>
+                <p className="text-xs text-slate-600 mt-0.5">Create learner account and assign curriculum track</p>
               </div>
               <button
                 onClick={() => setShowStudentModal(false)}
-                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
+                className="text-slate-600 hover:text-slate-600 rounded-lg p-1"
               >
                 ✕
               </button>

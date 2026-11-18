@@ -188,13 +188,55 @@ export function SettingsClient({
     }
   }
 
+  const handleClearAuditLogs = async () => {
+    if (!window.confirm('Clear all admin activity entries? This cannot be undone.')) return
+
+    try {
+      const res = await fetch('/api/v1/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CLEAR_AUDIT_LOGS', payload: {} }),
+      })
+      const json = await res.json()
+
+      if (json.success) {
+        setAuditLogs([])
+      } else {
+        alert(json.error || 'Failed to clear admin activity.')
+      }
+    } catch {
+      alert('Failed to clear admin activity.')
+    }
+  }
+
+  const handleDeleteAuditLog = async (log: AuditLogRecord) => {
+    if (!window.confirm(`Delete this activity entry for ${log.action}?`)) return
+
+    try {
+      const res = await fetch('/api/v1/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DELETE_AUDIT_LOG', payload: { id: log.id } }),
+      })
+      const json = await res.json()
+
+      if (json.success) {
+        setAuditLogs((current) => current.filter((entry) => entry.id !== log.id))
+      } else {
+        alert(json.error || 'Failed to delete activity entry.')
+      }
+    } catch {
+      alert('Failed to delete activity entry.')
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* ── Tabs Navigation ── */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-px overflow-x-auto">
         <button
           onClick={() => setActiveTab('PROFILE')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-150 whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap ${
             activeTab === 'PROFILE'
               ? 'border-brand-700 text-brand-700'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
@@ -203,12 +245,12 @@ export function SettingsClient({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          <span>Lead Teacher Profile & Credentials</span>
+          <span>Account</span>
         </button>
 
         <button
           onClick={() => setActiveTab('ACADEMY')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-150 whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap ${
             activeTab === 'ACADEMY'
               ? 'border-brand-700 text-brand-700'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
@@ -218,12 +260,12 @@ export function SettingsClient({
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <span>Academy Operations</span>
+          <span>Academy</span>
         </button>
 
         <button
           onClick={() => setActiveTab('SEO')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-150 whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap ${
             activeTab === 'SEO'
               ? 'border-brand-700 text-brand-700'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
@@ -232,12 +274,12 @@ export function SettingsClient({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
           </svg>
-          <span>Website Content & SEO</span>
+          <span>Website</span>
         </button>
 
         <button
           onClick={() => setActiveTab('AUDIT')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-150 whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-3 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap ${
             activeTab === 'AUDIT'
               ? 'border-brand-700 text-brand-700'
               : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
@@ -246,7 +288,7 @@ export function SettingsClient({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
-          <span>Audit Logs & Security</span>
+          <span>Admin activity</span>
         </button>
       </div>
 
@@ -269,9 +311,9 @@ export function SettingsClient({
 
           {/* Profile Photo Card */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <h3 className="font-extrabold text-base text-slate-900">Administrator Avatar & Photo</h3>
+            <h3 className="font-extrabold text-base text-slate-900">Profile photo</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              This photo is displayed in the top navbar, lesson confirmations, and student dashboards.
+              Shown in the admin navigation and student dashboard.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-5 mt-5">
@@ -323,19 +365,16 @@ export function SettingsClient({
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="font-extrabold text-base text-slate-900">Platform Owner Authority</h3>
+                <h3 className="font-extrabold text-base text-slate-900">Account details</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Single authorized administrator account for WorkSpeak Portugal.
+                  Update your contact details and sign-in credentials.
                 </p>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-brand-50 text-brand-900 border border-brand-200">
-                1 OF 1 ADMIN ACCOUNT
-              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Full Legal Name</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Full name</label>
                 <input
                   type="text"
                   required
@@ -346,7 +385,7 @@ export function SettingsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Teacher / Academic Title</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Professional title</label>
                 <input
                   type="text"
                   required
@@ -357,7 +396,7 @@ export function SettingsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Admin Email Address</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Email address</label>
                 <input
                   type="email"
                   required
@@ -368,7 +407,7 @@ export function SettingsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Direct Phone / WhatsApp</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Phone</label>
                 <input
                   type="text"
                   required
@@ -383,15 +422,15 @@ export function SettingsClient({
           {/* Change Password Card */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div>
-              <h3 className="font-extrabold text-base text-slate-900">Update Administrator Password</h3>
+              <h3 className="font-extrabold text-base text-slate-900">Change password</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Leave blank if you do not wish to change your sign-in password.
+                Leave blank to keep your current password.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">New Secure Password</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">New password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -446,11 +485,11 @@ export function SettingsClient({
           )}
 
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h3 className="font-extrabold text-base text-slate-900">Operations & Tuition Settings</h3>
+            <h3 className="font-extrabold text-base text-slate-900">Academy operations</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Academy Brand Name</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Academy name</label>
                 <input
                   type="text"
                   required
@@ -461,7 +500,7 @@ export function SettingsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Standard Hourly Rate (€ / 60m)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Standard hourly rate (EUR)</label>
                 <input
                   type="number"
                   required
@@ -472,7 +511,7 @@ export function SettingsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Operational Timezone</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Timezone</label>
                 <input
                   type="text"
                   required
@@ -483,7 +522,7 @@ export function SettingsClient({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Online Video Platform</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Online meeting platform</label>
                 <input
                   type="text"
                   required
@@ -518,7 +557,7 @@ export function SettingsClient({
           )}
 
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h3 className="font-extrabold text-base text-slate-900">Website Header Announcement Banner</h3>
+            <h3 className="font-extrabold text-base text-slate-900">Announcement banner</h3>
 
             <div className="flex items-center gap-3">
               <input
@@ -529,7 +568,7 @@ export function SettingsClient({
                 className="h-4 w-4 text-brand-900 rounded border-slate-300"
               />
               <label htmlFor="bannerActive" className="text-xs font-bold text-slate-800">
-                Display top banner across all public pages
+                Show banner on public pages
               </label>
             </div>
 
@@ -545,10 +584,10 @@ export function SettingsClient({
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h3 className="font-extrabold text-base text-slate-900">Search Engine Optimization (SEO)</h3>
+            <h3 className="font-extrabold text-base text-slate-900">Search appearance</h3>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Global Site Meta Title</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Page title</label>
               <input
                 type="text"
                 value={seo.siteTitle}
@@ -558,7 +597,7 @@ export function SettingsClient({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Global Meta Description</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Meta description</label>
               <textarea
                 rows={3}
                 value={seo.metaDescription}
@@ -568,7 +607,7 @@ export function SettingsClient({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Target Keywords</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Search keywords</label>
               <input
                 type="text"
                 value={seo.targetKeywords}
@@ -595,14 +634,20 @@ export function SettingsClient({
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-base text-slate-900">Administrative Audit Trail</h3>
+              <h3 className="font-extrabold text-base text-slate-900">Admin activity</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Real-time security log capturing every administrative mutation, credential change, and student interaction.
+                Recent changes made by administrators.
               </p>
             </div>
-            <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              AUDIT ACTIVE
-            </span>
+            {auditLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAuditLogs}
+                className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50"
+              >
+                Clear activity
+              </button>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
@@ -615,12 +660,13 @@ export function SettingsClient({
                     <th className="px-5 py-3.5">Action</th>
                     <th className="px-5 py-3.5">Entity</th>
                     <th className="px-5 py-3.5">Details</th>
+                    <th className="px-5 py-3.5">Manage</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {auditLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-slate-400">
+                      <td colSpan={6} className="px-5 py-8 text-center text-slate-400">
                         No audit events recorded yet.
                       </td>
                     </tr>
@@ -643,6 +689,15 @@ export function SettingsClient({
                         </td>
                         <td className="px-5 py-3 text-slate-700">
                           {log.details}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAuditLog(log)}
+                            className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))
