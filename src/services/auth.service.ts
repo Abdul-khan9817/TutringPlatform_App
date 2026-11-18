@@ -233,24 +233,54 @@ export const authService = {
     const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
     const configuredPassword = process.env.ADMIN_PASSWORD
     const inputEmail = input.email.trim().toLowerCase()
-    if (!configuredEmail || !configuredPassword || inputEmail !== configuredEmail || input.password !== configuredPassword) {
+
+    // Optional environment-backed system account. This also lets the owner
+    // sign in if the database is temporarily unavailable.
+    if (configuredEmail && configuredPassword && inputEmail === configuredEmail && input.password === configuredPassword) {
+      const adminProfile = await getAdminProfile()
+      const adminId = 'admin-system-master'
+      const payload = { sub: adminId, role: 'ADMIN' as const, email: configuredEmail }
+      const [accessToken, refreshToken] = await Promise.all([
+        signAccessToken(payload),
+        signRefreshToken(payload),
+      ])
+      void createRefreshSession(adminId, refreshToken, metadata)
+      setAuthCookies(accessToken, refreshToken)
+      logger.info('Administrator logged in successfully', { email: configuredEmail })
+      return {
+        id: adminId,
+        email: configuredEmail,
+        name: adminProfile.name || (process.env.ADMIN_NAME ?? 'Administrator'),
+        role: 'ADMIN' as const,
+      }
+    }
+
+    let adminUser
+    try {
+      adminUser = await prisma.user.findFirst({
+        where: { email: { equals: inputEmail, mode: 'insensitive' }, role: 'ADMIN', isActive: true },
+        select: { id: true, email: true, name: true, passwordHash: true },
+      })
+    } catch {
+      throw new AuthError('ADMIN_AUTH_UNAVAILABLE', 'Administrator sign-in is unavailable. Please try again shortly.', 503)
+    }
+
+    if (!adminUser || !(await verifyPassword(input.password, adminUser.passwordHash))) {
       throw new AuthError('INVALID_CREDENTIALS', 'Invalid email or password', 401)
     }
 
-    const adminProfile = await getAdminProfile()
-    const adminId = 'admin-system-master'
-    const payload = { sub: adminId, role: 'ADMIN' as const, email: configuredEmail }
+    const payload = { sub: adminUser.id, role: 'ADMIN' as const, email: adminUser.email }
     const [accessToken, refreshToken] = await Promise.all([
       signAccessToken(payload),
       signRefreshToken(payload),
     ])
-    void createRefreshSession(adminId, refreshToken, metadata)
+    void createRefreshSession(adminUser.id, refreshToken, metadata)
     setAuthCookies(accessToken, refreshToken)
-    logger.info('Administrator logged in successfully', { email: configuredEmail })
+    logger.info('Administrator logged in successfully', { email: adminUser.email })
     return {
-      id: adminId,
-      email: configuredEmail,
-      name: adminProfile.name || (process.env.ADMIN_NAME ?? 'Administrator'),
+      id: adminUser.id,
+      email: adminUser.email,
+      name: adminUser.name,
       role: 'ADMIN' as const,
     }
   },

@@ -2,6 +2,7 @@
 // Queries Prisma database when connected, and maintains consistent in-memory state during development
 import { prisma } from './prisma'
 import { hashPassword, invalidateAllUserSessions } from './auth'
+import { unstable_cache } from 'next/cache'
 
 export interface StudentRecord {
   id: string
@@ -1344,11 +1345,18 @@ async function getOrCreateBookingService(data: {
   })
 }
 
-export async function getAdminBookings(statusFilter?: string) {
+async function loadAdminBookings(statusFilter?: string) {
   let list: BookingRecord[]
   try {
     const rows = await prisma.booking.findMany({
-      include: { student: true, tutor: true, service: true, lesson: true, payment: true },
+      select: {
+        id: true, startAt: true, deliveryMode: true, status: true, meetingLink: true,
+        student: { select: { name: true, email: true } },
+        tutor: { select: { name: true } },
+        service: { select: { name: true, language: true, durationMinutes: true, price: true } },
+        lesson: { select: { attendanceStatus: true, topic: true, studentFeedback: true } },
+        payment: { select: { amount: true } },
+      },
       orderBy: { startAt: 'desc' },
     })
     list = rows.map(toAdminBookingRecord)
@@ -1360,6 +1368,8 @@ export async function getAdminBookings(statusFilter?: string) {
   }
   return list
 }
+
+export const getAdminBookings = unstable_cache(loadAdminBookings, ['admin-bookings-v1'], { revalidate: 5 })
 
 export async function createAdminBooking(data: {
   studentName: string
@@ -1560,7 +1570,7 @@ export function addAssessmentToAdminStore(data: {
   })
 }
 
-export async function getAdminAssessments(statusFilter?: string) {
+async function loadAdminAssessments(statusFilter?: string) {
   // Sync with Prisma database to load all guest inquiries
   try {
     const dbAssessments = await prisma.assessmentRequest.findMany({
@@ -1610,6 +1620,8 @@ export async function getAdminAssessments(statusFilter?: string) {
   }
   return list
 }
+
+export const getAdminAssessments = unstable_cache(loadAdminAssessments, ['admin-assessments-v1'], { revalidate: 5 })
 
 export async function updateAdminAssessmentStatus(
   id: string,
@@ -1723,9 +1735,15 @@ export async function deleteAdminPayment(id: string) {
 // Learning Materials Management API Methods
 // ────────────────────────────────────────────────────────────
 
-export async function getAdminMaterials() {
+async function loadAdminMaterials() {
   try {
-    const rows = await prisma.learningMaterial.findMany({ include: { accessGrants: { take: 1 } }, orderBy: { createdAt: 'desc' } })
+    const rows = await prisma.learningMaterial.findMany({
+      select: {
+        id: true, title: true, description: true, mimeType: true, fileKey: true, language: true, isPublic: true, createdAt: true,
+        accessGrants: { select: { studentId: true }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
     return rows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -1741,6 +1759,8 @@ export async function getAdminMaterials() {
     return [...globalStore._adminMaterials!]
   }
 }
+
+export const getAdminMaterials = unstable_cache(loadAdminMaterials, ['admin-materials-v1'], { revalidate: 5 })
 
 export async function addAdminMaterial(data: Omit<LearningMaterialRecord, 'id' | 'uploadedAt'>) {
   const uploadedById = await getDatabaseAdminId()
@@ -1811,12 +1831,18 @@ export async function deleteAdminMaterial(id: string) {
   return true
 }
 
-export async function getAdminHomework() {
+async function loadAdminHomework() {
   try {
-    const rows = await prisma.homework.findMany({ include: { submission: true }, orderBy: { createdAt: 'desc' } })
+    const rows = await prisma.homework.findMany({
+      select: {
+        id: true, title: true, instructions: true, studentId: true, dueAt: true, status: true, createdAt: true,
+        submission: { select: { feedback: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
     const students = await prisma.user.findMany({
       where: { id: { in: rows.map((row) => row.studentId) } },
-      include: { studentProfile: true },
+      select: { id: true, name: true, studentProfile: { select: { preferredLanguage: true } } },
     })
     const studentsById = new Map(students.map((student) => [student.id, student]))
     return rows.map((row) => ({
@@ -1836,6 +1862,8 @@ export async function getAdminHomework() {
     return [...globalStore._adminHomework!]
   }
 }
+
+export const getAdminHomework = unstable_cache(loadAdminHomework, ['admin-homework-v1'], { revalidate: 5 })
 
 export async function createAdminHomework(data: {
   title: string

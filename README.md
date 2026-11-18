@@ -138,7 +138,7 @@ npm start
 4. Set `DATABASE_URL` and `DIRECT_URL` from Railway
 5. Run migrations: `npx prisma migrate deploy`
 6. Run seed: `npm run db:seed`
-7. Create admin: `npm run admin:create`
+7. Create the admin against the **production database**: set `DATABASE_URL` to the production database, provide `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME`, then run `npm run admin:create`. Admin sign-in checks this database account, so creating it only in a local database will not provision production. Remove the one-time admin credential variables after provisioning.
 8. Configure Stripe webhook endpoint: `https://yourdomain.com/api/v1/payments/webhook`
 
 ### VPS (Ubuntu)

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
 import type { BookingRecord, AssessmentRecord } from '@/lib/admin-data'
 import type { AvailablePackage, StudentBooking, StudentHomework, StudentMaterial, StudentPackage, StudentProgressEntry } from '@/lib/student-data'
 
@@ -11,7 +12,7 @@ export interface StudentServiceOption {
   deliveryMode: 'ONLINE' | 'IN_PERSON' | 'BOTH'
 }
 
-export async function getStudentServicesFromDatabase(): Promise<StudentServiceOption[]> {
+async function loadStudentServicesFromDatabase(): Promise<StudentServiceOption[]> {
   const services = await prisma.service.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: 'asc' },
@@ -25,6 +26,8 @@ export async function getStudentServicesFromDatabase(): Promise<StudentServiceOp
     deliveryMode: service.deliveryMode,
   }))
 }
+
+export const getStudentServicesFromDatabase = unstable_cache(loadStudentServicesFromDatabase, ['student-services-v1'], { revalidate: 30 })
 
 export function toStudentBooking(booking: any): StudentBooking {
   const status: StudentBooking['status'] =
@@ -55,19 +58,30 @@ export function toStudentBooking(booking: any): StudentBooking {
   }
 }
 
-export async function getStudentBookingsFromDatabase(userId: string): Promise<StudentBooking[]> {
+async function loadStudentBookingsFromDatabase(userId: string): Promise<StudentBooking[]> {
   const rows = await prisma.booking.findMany({
     where: { studentId: userId },
-    include: { service: true, tutor: true, lesson: true, payment: true },
+    select: {
+      id: true, status: true, deliveryMode: true, startAt: true, endAt: true, meetingLink: true,
+      service: { select: { name: true, language: true, durationMinutes: true, price: true } },
+      tutor: { select: { name: true } },
+      lesson: { select: { attendanceStatus: true, topic: true, studentFeedback: true } },
+      payment: { select: { amount: true, status: true } },
+    },
     orderBy: { startAt: 'desc' },
   })
   return rows.map(toStudentBooking)
 }
 
-export async function getStudentHomeworkFromDatabase(userId: string): Promise<StudentHomework[]> {
+export const getStudentBookingsFromDatabase = unstable_cache(loadStudentBookingsFromDatabase, ['student-bookings-v1'], { revalidate: 5 })
+
+async function loadStudentHomeworkFromDatabase(userId: string): Promise<StudentHomework[]> {
   const rows = await prisma.homework.findMany({
     where: { studentId: userId },
-    include: { submission: true },
+    select: {
+      id: true, title: true, instructions: true, dueAt: true, status: true, createdAt: true,
+      submission: { select: { feedback: true } },
+    },
     orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
   })
   return rows.map((row) => ({
@@ -81,7 +95,9 @@ export async function getStudentHomeworkFromDatabase(userId: string): Promise<St
   }))
 }
 
-export async function getStudentMaterialsFromDatabase(userId: string): Promise<StudentMaterial[]> {
+export const getStudentHomeworkFromDatabase = unstable_cache(loadStudentHomeworkFromDatabase, ['student-homework-v1'], { revalidate: 5 })
+
+async function loadStudentMaterialsFromDatabase(userId: string): Promise<StudentMaterial[]> {
   const rows = await prisma.learningMaterial.findMany({
     where: {
       OR: [
@@ -89,6 +105,7 @@ export async function getStudentMaterialsFromDatabase(userId: string): Promise<S
         { accessGrants: { some: { studentId: userId, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
       ],
     },
+    select: { id: true, title: true, mimeType: true, description: true, fileKey: true, language: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
   return rows.map((row) => ({
@@ -103,10 +120,16 @@ export async function getStudentMaterialsFromDatabase(userId: string): Promise<S
   }))
 }
 
-export async function getStudentPackagesFromDatabase(userId: string): Promise<{ purchased: StudentPackage[]; available: AvailablePackage[] }> {
+export const getStudentMaterialsFromDatabase = unstable_cache(loadStudentMaterialsFromDatabase, ['student-materials-v1'], { revalidate: 5 })
+
+async function loadStudentPackagesFromDatabase(userId: string): Promise<{ purchased: StudentPackage[]; available: AvailablePackage[] }> {
   const [purchases, packages] = await Promise.all([
-    prisma.packagePurchase.findMany({ where: { studentId: userId }, include: { package: true }, orderBy: { purchasedAt: 'desc' } }),
-    prisma.package.findMany({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } }),
+    prisma.packagePurchase.findMany({
+      where: { studentId: userId },
+      select: { id: true, totalLessons: true, usedLessons: true, status: true, purchasedAt: true, expiresAt: true, package: { select: { name: true, language: true, validityDays: true, price: true, description: true } } },
+      orderBy: { purchasedAt: 'desc' },
+    }),
+    prisma.package.findMany({ where: { isActive: true }, select: { id: true, name: true, language: true, lessonCount: true, validityDays: true, price: true, description: true }, orderBy: { sortOrder: 'asc' } }),
   ])
   return {
     purchased: purchases.map((purchase) => ({
@@ -135,9 +158,11 @@ export async function getStudentPackagesFromDatabase(userId: string): Promise<{ 
   }
 }
 
-export async function getStudentProgressFromDatabase(userId: string): Promise<StudentProgressEntry[]> {
+export const getStudentPackagesFromDatabase = unstable_cache(loadStudentPackagesFromDatabase, ['student-packages-v1'], { revalidate: 5 })
+
+async function loadStudentProgressFromDatabase(userId: string): Promise<StudentProgressEntry[]> {
   const [rows, completedLessons, profile] = await Promise.all([
-    prisma.studentProgress.findMany({ where: { studentId: userId }, orderBy: { createdAt: 'asc' } }),
+    prisma.studentProgress.findMany({ where: { studentId: userId }, select: { currentLevel: true, previousLevel: true, createdAt: true }, orderBy: { createdAt: 'asc' } }),
     prisma.lesson.count({ where: { studentId: userId, completedAt: { not: null } } }),
     prisma.studentProfile.findUnique({ where: { userId }, select: { currentLevel: true } }),
   ])
@@ -162,7 +187,9 @@ export async function getStudentProgressFromDatabase(userId: string): Promise<St
   return progress
 }
 
-export async function getManagementDashboardData() {
+export const getStudentProgressFromDatabase = unstable_cache(loadStudentProgressFromDatabase, ['student-progress-v1'], { revalidate: 5 })
+
+async function loadManagementDashboardData() {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   try {
@@ -174,8 +201,22 @@ export async function getManagementDashboardData() {
     prisma.booking.count({ where: { status: 'PENDING_PAYMENT' } }),
     prisma.payment.aggregate({ where: { status: 'SUCCEEDED', paidAt: { gte: monthStart } }, _sum: { amount: true } }),
     prisma.payment.aggregate({ where: { status: 'SUCCEEDED' }, _sum: { amount: true } }),
-    prisma.booking.findMany({ where: { status: 'CONFIRMED', startAt: { gte: now } }, include: { student: true, tutor: true, service: true, lesson: true }, orderBy: { startAt: 'asc' }, take: 20 }),
-    prisma.assessmentRequest.findMany({ where: { status: { in: ['NEW', 'CONTACTED'] } }, orderBy: { createdAt: 'desc' }, take: 10 }),
+    prisma.booking.findMany({
+      where: { status: 'CONFIRMED', startAt: { gte: now } },
+      select: {
+        id: true, deliveryMode: true, startAt: true, meetingLink: true,
+        student: { select: { name: true, email: true } },
+        tutor: { select: { name: true } },
+        service: { select: { name: true, language: true, durationMinutes: true, price: true } },
+        lesson: { select: { attendanceStatus: true, topic: true, studentFeedback: true } },
+      },
+      orderBy: { startAt: 'asc' }, take: 20,
+    }),
+    prisma.assessmentRequest.findMany({
+      where: { status: { in: ['NEW', 'CONTACTED'] } },
+      select: { id: true, name: true, email: true, phone: true, language: true, deliveryMode: true, currentLevel: true, learningGoals: true, message: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'desc' }, take: 10,
+    }),
   ])
   const initialBookings: BookingRecord[] = bookings.map((b) => ({
     id: b.id, studentName: b.student.name, studentEmail: b.student.email, tutorName: b.tutor.name,
@@ -213,15 +254,35 @@ export async function getManagementDashboardData() {
   }
 }
 
-export async function getStudentDashboardFromDatabase(userId: string) {
+export const getManagementDashboardData = unstable_cache(loadManagementDashboardData, ['management-dashboard-v1'], { revalidate: 5 })
+
+async function loadStudentDashboardFromDatabase(userId: string) {
   const now = new Date()
   try {
   const [bookings, packages, homeworkRows, materialsRows, progressRows, attendance, lastPayment, completedLessons, pendingHomework, studentProfile, services] = await Promise.all([
-    prisma.booking.findMany({ where: { studentId: userId, status: 'CONFIRMED', startAt: { gte: now } }, include: { service: true, tutor: true, lesson: true, payment: true }, orderBy: { startAt: 'asc' }, take: 5 }),
-    prisma.packagePurchase.findMany({ where: { studentId: userId, status: 'ACTIVE', expiresAt: { gte: now } }, include: { package: true }, orderBy: { expiresAt: 'asc' } }),
-    prisma.homework.findMany({ where: { studentId: userId }, orderBy: { dueAt: 'asc' }, take: 5 }),
-    prisma.learningMaterial.findMany({ where: { OR: [{ isPublic: true }, { accessGrants: { some: { studentId: userId, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } } }] }, orderBy: { createdAt: 'desc' }, take: 5 }),
-    prisma.studentProgress.findMany({ where: { studentId: userId }, orderBy: { createdAt: 'asc' } }),
+    prisma.booking.findMany({
+      where: { studentId: userId, status: 'CONFIRMED', startAt: { gte: now } },
+      select: {
+        id: true, deliveryMode: true, startAt: true, endAt: true, meetingLink: true,
+        service: { select: { name: true, language: true, durationMinutes: true, price: true } },
+        tutor: { select: { name: true } },
+        lesson: { select: { attendanceStatus: true, topic: true, studentFeedback: true } },
+        payment: { select: { status: true } },
+      },
+      orderBy: { startAt: 'asc' }, take: 5,
+    }),
+    prisma.packagePurchase.findMany({
+      where: { studentId: userId, status: 'ACTIVE', expiresAt: { gte: now } },
+      select: { id: true, totalLessons: true, usedLessons: true, purchasedAt: true, expiresAt: true, package: { select: { name: true, language: true, validityDays: true, price: true, description: true } } },
+      orderBy: { expiresAt: 'asc' },
+    }),
+    prisma.homework.findMany({ where: { studentId: userId }, select: { id: true, title: true, instructions: true, dueAt: true, status: true, createdAt: true }, orderBy: { dueAt: 'asc' }, take: 5 }),
+    prisma.learningMaterial.findMany({
+      where: { OR: [{ isPublic: true }, { accessGrants: { some: { studentId: userId, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } } }] },
+      select: { id: true, title: true, mimeType: true, description: true, fileKey: true, language: true, createdAt: true },
+      orderBy: { createdAt: 'desc' }, take: 5,
+    }),
+    prisma.studentProgress.findMany({ where: { studentId: userId }, select: { currentLevel: true, previousLevel: true, createdAt: true }, orderBy: { createdAt: 'asc' } }),
     prisma.lesson.groupBy({ by: ['attendanceStatus'], where: { studentId: userId, attendanceStatus: { not: null } }, _count: { _all: true } }),
     prisma.payment.findFirst({ where: { studentId: userId, status: 'SUCCEEDED' }, orderBy: { paidAt: 'desc' } }),
     prisma.lesson.count({ where: { studentId: userId, completedAt: { not: null } } }),
@@ -268,3 +329,5 @@ export async function getStudentDashboardFromDatabase(userId: string) {
     }
   }
 }
+
+export const getStudentDashboardFromDatabase = unstable_cache(loadStudentDashboardFromDatabase, ['student-dashboard-v1'], { revalidate: 5 })

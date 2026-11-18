@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { cache } from 'react'
 import { prisma } from './prisma'
 import { logger } from './logger'
 import type { Role } from '@prisma/client'
@@ -209,7 +210,8 @@ export async function invalidateAllUserSessions(userId: string) {
 
 // ─── Get full user from session ───────────────────────────────────────────────
 
-export async function getAuthenticatedUser(session: JWTPayload) {
+const getAuthenticatedUserCached = cache(async (sub: string, role: Role, email: string) => {
+  const session: JWTPayload = { sub, role, email }
   // The system administrator is authenticated from configured credentials and
   // does not have a corresponding row in the application database. Skip the
   // database lookup (which can be slow when a hosted database is waking up).
@@ -328,4 +330,8 @@ export async function getAuthenticatedUser(session: JWTPayload) {
   }
 
   throw new AuthError('USER_NOT_FOUND', 'User account not found or deactivated', 401)
+})
+
+export function getAuthenticatedUser(session: JWTPayload) {
+  return getAuthenticatedUserCached(session.sub, session.role, session.email)
 }
