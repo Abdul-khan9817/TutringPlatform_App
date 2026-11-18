@@ -151,8 +151,7 @@ export function Footer() {
               onClick={handleTouchTrigger}
               onDoubleClick={handleAdminTrigger}
               className="cursor-pointer select-none hover:text-amber-300 transition-colors inline-block font-semibold"
-              title="WorkSpeak Portugal Admin Portal"
-              aria-label="Copyright symbol (Double tap for admin login)"
+              aria-label="Copyright symbol (Double-click or double-tap for administrator sign in)"
             >
               ©
             </span>{' '}

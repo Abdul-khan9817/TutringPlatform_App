@@ -42,7 +42,7 @@ export function AdminLoginForm() {
   const onSubmit = async (data: FormData) => {
     setError(null)
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      const res = await fetch('/api/v1/auth/admin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -50,10 +50,6 @@ export function AdminLoginForm() {
       const json = await res.json()
       if (!res.ok) {
         setError(json.error?.message ?? 'Invalid email or password')
-        return
-      }
-      if (json.data?.role !== 'ADMIN') {
-        setError('Access denied.')
         return
       }
       setIsNavigating(true)

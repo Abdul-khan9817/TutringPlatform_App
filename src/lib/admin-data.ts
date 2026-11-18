@@ -1,7 +1,7 @@
 // Unified backend data provider for Admin Management
 // Queries Prisma database when connected, and maintains consistent in-memory state during development
 import { prisma } from './prisma'
-import { hashPassword } from './auth'
+import { hashPassword, invalidateAllUserSessions } from './auth'
 
 export interface StudentRecord {
   id: string
@@ -169,6 +169,7 @@ const globalStore = globalThis as unknown as {
   _adminMaterials?: LearningMaterialRecord[]
   _adminHomework?: AdminHomeworkRecord[]
   _adminAuditLogs?: AuditLogRecord[]
+  _adminStudentsSyncedAt?: number
 }
 
 // ────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ if (!globalStore._adminProfile) {
     id: 'admin-system-master',
     name: 'Asad Khan',
     email: 'khanasad4244@gmail.com',
-    password: 'Admin@WorkSpeak2026!',
+    password: undefined,
     role: 'ADMIN',
     title: 'Lead Teacher & Platform Owner',
     avatarUrl: '',
@@ -244,7 +245,6 @@ if (!globalStore._adminStudents) {
       status: 'ACTIVE',
       joinedAt: '2026-08-01',
       assignedCourses: ['European Portuguese Starter — 10 Lessons'],
-      tempPassword: 'Student@WorkSpeak2026!',
       inviteToken: 'inv_demo_001',
       inviteUrl: 'http://localhost:3000/login',
       notes: 'Initial enrolled demo student account.',
@@ -263,7 +263,6 @@ if (!globalStore._adminStudents) {
       status: 'ACTIVE',
       joinedAt: '2026-09-15',
       assignedCourses: ['European Portuguese for Tech Professionals', 'Workplace Daily Communication'],
-      tempPassword: 'Student@WorkSpeak2026!',
       inviteToken: 'inv_msilva_9921',
       inviteUrl: 'http://localhost:3000/register?invite=inv_msilva_9921',
       notes: 'Focus on oral fluency for client presentations and negotiations.',
@@ -282,7 +281,6 @@ if (!globalStore._adminStudents) {
       status: 'ACTIVE',
       joinedAt: '2026-10-02',
       assignedCourses: ['European Portuguese A2 Intensive', 'Financial Vocabulary Portugal'],
-      tempPassword: 'Student@WorkSpeak2026!',
       inviteToken: 'inv_jharrington_4810',
       inviteUrl: 'http://localhost:3000/register?invite=inv_jharrington_4810',
       notes: 'Preparing for Portuguese citizenship residency language requirement (CIPLE A2).',
@@ -301,7 +299,6 @@ if (!globalStore._adminStudents) {
       status: 'ACTIVE',
       joinedAt: '2026-08-20',
       assignedCourses: ['Medical & Clinical English', 'International Healthcare Conferences'],
-      tempPassword: 'Student@WorkSpeak2026!',
       inviteToken: 'inv_asantos_3391',
       inviteUrl: 'http://localhost:3000/register?invite=inv_asantos_3391',
       notes: 'Cardiology specialist writing papers for BMJ and speaking at Oxford symposium.',
@@ -320,7 +317,6 @@ if (!globalStore._adminStudents) {
       status: 'ACTIVE',
       joinedAt: '2026-11-01',
       assignedCourses: ['Portuguese A1 Immersion', 'Everyday Life in Lisbon'],
-      tempPassword: 'Student@WorkSpeak2026!',
       inviteToken: 'inv_dvandijk_1029',
       inviteUrl: 'http://localhost:3000/register?invite=inv_dvandijk_1029',
       notes: 'Digital nomad relocated to Lisbon. Needs practical restaurant, shopping, and rental phrases.',
@@ -339,7 +335,6 @@ if (!globalStore._adminStudents) {
       status: 'ACTIVE',
       joinedAt: '2026-07-12',
       assignedCourses: ['Legal English & Contract Drafting', 'Cross-Border M&A Advisory'],
-      tempPassword: 'Student@WorkSpeak2026!',
       inviteToken: 'inv_srocha_5542',
       inviteUrl: 'http://localhost:3000/register?invite=inv_srocha_5542',
       notes: 'Commercial lawyer handling cross-border acquisitions between Portugal and the UK.',
@@ -844,7 +839,6 @@ export async function registerStudentAccount(data: {
     status: 'ACTIVE',
     joinedAt: new Date().toISOString().split('T')[0],
     assignedCourses: ['European Portuguese Starter Course'],
-    tempPassword: 'Student@WorkSpeak2026!',
     passwordHash: data.passwordHash,
     attendance: { attended: 0, absent: 0, late: 0 },
   }
@@ -854,41 +848,69 @@ export async function registerStudentAccount(data: {
 }
 
 export async function getAdminStudents(search?: string, languageFilter?: string, statusFilter?: string) {
-  try {
-    const users = await prisma.user.findMany({ where: { role: 'STUDENT' }, include: { studentProfile: true }, orderBy: { createdAt: 'desc' } })
-    for (const user of users) {
-      const index = globalStore._adminStudents!.findIndex((student) => student.email.toLowerCase() === user.email.toLowerCase())
-      const previous = index >= 0 ? globalStore._adminStudents![index] : undefined
-      const currentLevel = user.studentProfile?.currentLevel ?? previous?.currentLevel ?? ''
-      const cefrLevel = (currentLevel.match(/\b(A1|A2|B1|B2|C1|C2)\b/)?.[1] as StudentRecord['cefrLevel'] | undefined) ?? previous?.cefrLevel ?? 'A1'
-      const record: StudentRecord = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.studentProfile?.phone ?? previous?.phone ?? '',
-        preferredLanguage: user.studentProfile?.preferredLanguage ?? previous?.preferredLanguage ?? 'PORTUGUESE',
-        currentLevel,
-        cefrLevel,
-        lessonsCompleted: previous?.lessonsCompleted ?? 0,
-        lessonBalance: previous?.lessonBalance ?? 0,
-        status: user.isActive ? 'ACTIVE' : 'DEACTIVATED',
-        joinedAt: user.createdAt.toISOString().slice(0, 10),
-        assignedCourses: previous?.assignedCourses ?? [],
-        inviteToken: previous?.inviteToken,
-        inviteUrl: previous?.inviteUrl,
-        tempPassword: previous?.tempPassword,
-        passwordHash: previous?.passwordHash,
-        notes: user.studentProfile?.notes ?? previous?.notes ?? '',
-        attendance: previous?.attendance ?? { attended: 0, absent: 0, late: 0 },
+  const syncIsStale = !globalStore._adminStudentsSyncedAt || Date.now() - globalStore._adminStudentsSyncedAt > 15_000
+  if (syncIsStale) {
+    try {
+      const users = await prisma.user.findMany({
+        where: { role: 'STUDENT' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          isActive: true,
+          createdAt: true,
+          studentProfile: { select: { currentLevel: true, phone: true, preferredLanguage: true, notes: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      const syncedEmails = new Set<string>()
+      for (const user of users) {
+        const emailKey = user.email.trim().toLowerCase()
+        if (syncedEmails.has(emailKey)) continue
+        syncedEmails.add(emailKey)
+        const previous = globalStore._adminStudents!.find((student) => student.email.trim().toLowerCase() === emailKey)
+        const currentLevel = user.studentProfile?.currentLevel ?? previous?.currentLevel ?? ''
+        const cefrLevel = (currentLevel.match(/\b(A1|A2|B1|B2|C1|C2)\b/)?.[1] as StudentRecord['cefrLevel'] | undefined) ?? previous?.cefrLevel ?? 'A1'
+        const record: StudentRecord = {
+          id: user.id,
+          name: user.name,
+          email: user.email.trim().toLowerCase(),
+          phone: user.studentProfile?.phone ?? previous?.phone ?? '',
+          preferredLanguage: user.studentProfile?.preferredLanguage ?? previous?.preferredLanguage ?? 'PORTUGUESE',
+          currentLevel,
+          cefrLevel,
+          lessonsCompleted: previous?.lessonsCompleted ?? 0,
+          lessonBalance: previous?.lessonBalance ?? 0,
+          status: user.isActive ? 'ACTIVE' : 'DEACTIVATED',
+          joinedAt: user.createdAt.toISOString().slice(0, 10),
+          assignedCourses: previous?.assignedCourses ?? [],
+          inviteToken: previous?.inviteToken,
+          inviteUrl: previous?.inviteUrl,
+          tempPassword: previous?.tempPassword,
+          passwordHash: previous?.passwordHash,
+          notes: user.studentProfile?.notes ?? previous?.notes ?? '',
+          attendance: previous?.attendance ?? { attended: 0, absent: 0, late: 0 },
+        }
+        const index = globalStore._adminStudents!.findIndex((student) => student.email.trim().toLowerCase() === emailKey)
+        if (index >= 0) globalStore._adminStudents![index] = record
+        else globalStore._adminStudents!.unshift(record)
       }
-      if (index >= 0) globalStore._adminStudents![index] = record
-      else globalStore._adminStudents!.unshift(record)
+      globalStore._adminStudentsSyncedAt = Date.now()
+    } catch {
+      // Keep the in-memory list available when the database is offline.
+      // Avoid repeating a failed connection attempt on every navigation.
+      globalStore._adminStudentsSyncedAt = Date.now()
     }
-  } catch {
-    // Keep the in-memory list available when the database is offline.
   }
 
-  let list = [...globalStore._adminStudents!]
+  // Seed data, database rows, and legacy in-memory accounts can share an email.
+  // Use one canonical email key so a learner is only shown once.
+  const uniqueStudents = new Map<string, StudentRecord>()
+  for (const student of globalStore._adminStudents!) {
+    const key = student.email.trim().toLowerCase()
+    if (!uniqueStudents.has(key)) uniqueStudents.set(key, student)
+  }
+  let list = [...uniqueStudents.values()]
   if (search) {
     const q = search.toLowerCase()
     list = list.filter((student) => student.name.toLowerCase().includes(q) || student.email.toLowerCase().includes(q))
@@ -916,7 +938,7 @@ export async function addAdminStudent(data: {
   }
 
   const existingInMemory = globalStore._adminStudents!.find(
-    (student) => student.email.toLowerCase() === normEmail
+    (student) => student.email.trim().toLowerCase() === normEmail
   )
   if (existingInMemory) {
     throw Object.assign(new Error('A student account with this email already exists'), { statusCode: 409 })
@@ -973,8 +995,8 @@ export async function addAdminStudent(data: {
 
   // Persist to Prisma database
   try {
-    const existing = await prisma.user.findUnique({
-      where: { email: normEmail },
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: normEmail, mode: 'insensitive' } },
       select: { id: true },
     })
 
@@ -1004,6 +1026,9 @@ export async function addAdminStudent(data: {
   } catch (err) {
     if (typeof err === 'object' && err !== null && 'statusCode' in err) {
       throw err
+    }
+    if (typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2002') {
+      throw Object.assign(new Error('A student account with this email already exists'), { statusCode: 409 })
     }
     // Database fallback to memory store
   }
@@ -1171,36 +1196,42 @@ export async function resetStudentPassword(id: string, newPassword?: string) {
         : `WorkSpeak@${Math.floor(1000 + Math.random() * 9000)}!`
 
     const passwordHash = await hashPassword(tempPass)
-    student.tempPassword = tempPass
-    student.passwordHash = passwordHash
 
-    // Sync with database
+    // Reset credentials for the existing account only. Never create a user from
+    // this action; account creation belongs to the enrollment flow.
+    let existing: { id: string } | null = null
     try {
       const normEmail = student.email.trim().toLowerCase()
-      const existing = await prisma.user.findUnique({ where: { email: normEmail } })
-      if (existing) {
+      existing = await prisma.user.findFirst({
+        where: { email: { equals: normEmail, mode: 'insensitive' }, role: 'STUDENT' },
+        select: { id: true },
+      })
+    } catch {
+      if (process.env.DATABASE_URL) {
+        throw Object.assign(new Error('Could not update the student account. Please try again.'), { statusCode: 503 })
+      }
+    }
+
+    if (process.env.DATABASE_URL && !existing) {
+      throw Object.assign(new Error('Student account not found. Enroll the student before resetting access.'), { statusCode: 404 })
+    }
+
+    if (existing) {
+      try {
         await prisma.user.update({
           where: { id: existing.id },
           data: { passwordHash, isActive: true },
         })
-      } else {
-        await prisma.user.create({
-          data: {
-            email: normEmail,
-            name: student.name,
-            passwordHash,
-            role: 'STUDENT',
-            studentProfile: {
-              create: {
-                phone: student.phone,
-                preferredLanguage: student.preferredLanguage,
-                currentLevel: student.currentLevel,
-              },
-            },
-          },
-        })
+        await invalidateAllUserSessions(existing.id)
+      } catch {
+        if (process.env.DATABASE_URL) {
+          throw Object.assign(new Error('Could not update the student account. Please try again.'), { statusCode: 503 })
+        }
       }
-    } catch {}
+    }
+
+    student.tempPassword = tempPass
+    student.passwordHash = passwordHash
 
     await logAuditEvent(
       'RESET_STUDENT_PASSWORD',

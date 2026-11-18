@@ -19,7 +19,7 @@ export default function LoginPage() {
             </span>
           </Link>
 
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Sign in</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Student sign in</h1>
           <p className="text-sm text-slate-500 mt-1">
             Enter your credentials to access your account
           </p>

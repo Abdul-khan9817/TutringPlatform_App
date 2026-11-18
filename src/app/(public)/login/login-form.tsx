@@ -53,8 +53,12 @@ export function LoginForm() {
         return
       }
       const role = json.data?.role
+      if (role !== 'STUDENT') {
+        setError('This sign-in is for student accounts only.')
+        return
+      }
       setIsNavigating(true)
-      router.replace(role === 'STUDENT' ? '/student/dashboard' : '/management/dashboard')
+      router.replace('/student/dashboard')
     } catch {
       setError('Something went wrong. Please try again.')
     }
@@ -112,7 +116,7 @@ export function LoginForm() {
             type={showPassword ? 'text' : 'password'}
             placeholder="••••••••"
             autoComplete="current-password"
-            className={`h-11 w-full rounded-xl border bg-white pl-10 pr-10 text-sm text-slate-900 transition-all duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent ${
+            className={`h-11 w-full rounded-xl border bg-white pl-10 pr-10 text-sm text-slate-900 transition-all duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
               errors.password ? 'border-red-400 focus:ring-red-500' : 'border-slate-300 hover:border-brand-400'
             }`}
             aria-invalid={errors.password ? 'true' : undefined}

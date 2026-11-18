@@ -6,7 +6,14 @@ import { PortugalFlagIcon, UKFlagIcon, DualFlagIcon } from '@/components/ui/flag
 import { downloadProgressReportPdf } from '@/lib/pdf-generator'
 
 export function StudentsClient({ initialStudents }: { initialStudents: StudentRecord[] }) {
-  const [students, setStudents] = useState<StudentRecord[]>(initialStudents)
+  const [students, setStudents] = useState<StudentRecord[]>(() => {
+    const unique = new Map<string, StudentRecord>()
+    for (const student of initialStudents) {
+      const key = student.email.trim().toLowerCase()
+      if (!unique.has(key)) unique.set(key, student)
+    }
+    return [...unique.values()]
+  })
   const [search, setSearch] = useState('')
   const [langFilter, setLangFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -94,7 +101,8 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRe
       })
       const json = await res.json()
       if (json.success && json.data) {
-        setStudents([json.data, ...students])
+        const emailKey = json.data.email.trim().toLowerCase()
+        setStudents((current) => [json.data, ...current.filter((student) => student.email.trim().toLowerCase() !== emailKey)])
         setActiveStudent(json.data)
         setCredentialsMsg({
           tempPassword: json.data.tempPassword,

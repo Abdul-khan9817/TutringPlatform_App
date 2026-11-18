@@ -22,10 +22,8 @@ export const authService = {
 
     // Check if email matches admin
     const adminProfile = await getAdminProfile()
-    if (
-      normEmail === adminProfile.email.trim().toLowerCase() ||
-      normEmail === 'khanasad4244@gmail.com'
-    ) {
+    const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+    if (normEmail === adminProfile.email.trim().toLowerCase() || (configuredAdminEmail && normEmail === configuredAdminEmail)) {
       throw new AuthError('EMAIL_TAKEN', 'An account with this email already exists', 409)
     }
 
@@ -39,8 +37,8 @@ export const authService = {
 
     // Try PostgreSQL database first if connected
     try {
-      const existing = await prisma.user.findUnique({
-        where: { email: normEmail },
+      const existing = await prisma.user.findFirst({
+        where: { email: { equals: normEmail, mode: 'insensitive' } },
         select: { id: true },
       })
 
@@ -90,6 +88,9 @@ export const authService = {
       return user.user
     } catch (dbErr: any) {
       if (dbErr instanceof AuthError) throw dbErr
+      if (dbErr?.code === 'P2002') {
+        throw new AuthError('EMAIL_TAKEN', 'An account with this email already exists', 409)
+      }
       // Fallback: Register in in-memory student store
       logger.info('Registering student in persistent application store', { email: normEmail })
       const registered = await registerStudentAccount({
@@ -117,48 +118,10 @@ export const authService = {
     const inputPassword = input.password
 
     // ────────────────────────────────────────────────────────────
-    // 1. ADMIN AUTHENTICATION (Strict Single Authorized Account)
+    // Student sign-in never authenticates administrator or tutor accounts.
     // ────────────────────────────────────────────────────────────
-    const adminProfile = await getAdminProfile()
-    const configuredAdminEmail = (process.env.ADMIN_EMAIL ?? adminProfile.email ?? 'khanasad4244@gmail.com').trim().toLowerCase()
-    const configuredAdminPassword = process.env.ADMIN_PASSWORD ?? adminProfile.password ?? 'Admin@WorkSpeak2026!'
-
-    const isAdminEmail =
-      inputEmail === configuredAdminEmail ||
-      inputEmail === adminProfile.email.trim().toLowerCase() ||
-      inputEmail === 'khanasad4244@gmail.com'
-
-    if (isAdminEmail) {
-      const isAdminPasswordValid =
-        inputPassword === configuredAdminPassword ||
-        (adminProfile.password && inputPassword === adminProfile.password)
-
-      if (!isAdminPasswordValid) {
-        // Strict failure on incorrect admin password
-        throw new AuthError('INVALID_CREDENTIALS', 'Invalid email or password', 401)
-      }
-
-      const adminId = 'admin-system-master'
-      const payload = { sub: adminId, role: 'ADMIN' as const, email: inputEmail }
-      const [accessToken, refreshToken] = await Promise.all([
-        signAccessToken(payload),
-        signRefreshToken(payload),
-      ])
-
-      await createRefreshSession(adminId, refreshToken, metadata).catch(() => null)
-      setAuthCookies(accessToken, refreshToken)
-
-      logger.info('Administrator logged in successfully', { email: inputEmail })
-      return {
-        id: adminId,
-        email: inputEmail,
-        name: adminProfile.name || (process.env.ADMIN_NAME ?? 'Administrator'),
-        role: 'ADMIN' as const,
-      }
-    }
-
     // ────────────────────────────────────────────────────────────
-    // 2. STUDENT AUTHENTICATION (Strict Created Accounts Only)
+    // STUDENT AUTHENTICATION (Strict Created Accounts Only)
     // ────────────────────────────────────────────────────────────
 
     // A. Check database first (if live database is connected)
@@ -188,6 +151,9 @@ export const authService = {
     }
 
     if (dbUser) {
+      if (dbUser.role !== 'STUDENT') {
+        throw new AuthError('INVALID_CREDENTIALS', 'Invalid email or password', 401)
+      }
       if (!dbUser.isActive) {
         throw new AuthError(
           'ACCOUNT_DEACTIVATED',
@@ -201,17 +167,17 @@ export const authService = {
         throw new AuthError('INVALID_CREDENTIALS', 'Invalid email or password', 401)
       }
 
-      const payload = { sub: dbUser.id, role: dbUser.role, email: dbUser.email }
+      const payload = { sub: dbUser.id, role: 'STUDENT' as const, email: dbUser.email }
       const [accessToken, refreshToken] = await Promise.all([
         signAccessToken(payload),
         signRefreshToken(payload),
       ])
 
-      await createRefreshSession(dbUser.id, refreshToken, metadata).catch(() => null)
+      void createRefreshSession(dbUser.id, refreshToken, metadata)
       setAuthCookies(accessToken, refreshToken)
 
       logger.info('Student logged in via database', { userId: dbUser.id })
-      return { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role }
+      return { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: 'STUDENT' as const }
     }
 
     // B. Check in-memory store for enrolled/created student accounts
@@ -251,7 +217,7 @@ export const authService = {
       signRefreshToken(payload),
     ])
 
-    await createRefreshSession(student.id, refreshToken, metadata).catch(() => null)
+    void createRefreshSession(student.id, refreshToken, metadata)
     setAuthCookies(accessToken, refreshToken)
 
     logger.info('Student logged in successfully', { studentId: student.id, email: student.email })
@@ -260,6 +226,32 @@ export const authService = {
       email: student.email,
       name: student.name,
       role: 'STUDENT' as const,
+    }
+  },
+
+  async adminLogin(input: LoginInput, metadata?: { userAgent?: string; ipAddress?: string }) {
+    const configuredEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+    const configuredPassword = process.env.ADMIN_PASSWORD
+    const inputEmail = input.email.trim().toLowerCase()
+    if (!configuredEmail || !configuredPassword || inputEmail !== configuredEmail || input.password !== configuredPassword) {
+      throw new AuthError('INVALID_CREDENTIALS', 'Invalid email or password', 401)
+    }
+
+    const adminProfile = await getAdminProfile()
+    const adminId = 'admin-system-master'
+    const payload = { sub: adminId, role: 'ADMIN' as const, email: configuredEmail }
+    const [accessToken, refreshToken] = await Promise.all([
+      signAccessToken(payload),
+      signRefreshToken(payload),
+    ])
+    void createRefreshSession(adminId, refreshToken, metadata)
+    setAuthCookies(accessToken, refreshToken)
+    logger.info('Administrator logged in successfully', { email: configuredEmail })
+    return {
+      id: adminId,
+      email: configuredEmail,
+      name: adminProfile.name || (process.env.ADMIN_NAME ?? 'Administrator'),
+      role: 'ADMIN' as const,
     }
   },
 
